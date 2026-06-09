@@ -198,6 +198,22 @@ function grade(id, remembered){
   });
   revealed=false; persist(); render();
 }
+// "I know this" from the Browse tab: keep the card, just space it out further.
+// It still returns for review on schedule (and monthly once mastered) instead of being deleted.
+function knowIt(id){
+  var t=Date.now();
+  cards = cards.map(function(c){
+    if(c.id!==id) return c;
+    var level = c.level+1;
+    var i = Math.min(level, INTERVALS.length-1);
+    return Object.assign({}, c, { level:level, lastReviewed:t, nextReview:t + INTERVALS[i]*DAY });
+  });
+  persist();
+  flipped=false;
+  toastMsg="\u2713 Spaced out \u2014 it will still come back for review";
+  render();
+  setTimeout(function(){ toastMsg=""; render(); }, 2600);
+}
 function addCard(word, def){
   if(!word.trim()||!def.trim()) return;
   cards.push(makeCard({front:word.trim(), back:def.trim()}));
@@ -305,7 +321,7 @@ function renderBrowse(){
     '<button class="ctrl-btn" data-nav="-1"'+(idx===0?' disabled':'')+'>\u2039</button>'+
     '<span class="card-counter">'+(idx+1)+' / '+cards.length+'</span>'+
     '<button class="ctrl-btn" data-nav="1"'+(idx===cards.length-1?' disabled':'')+'>\u203A</button>'+
-    '<button class="remove-btn" data-remove="'+c.id+'">\u2713 I know this</button>'+
+    '<button class="remove-btn" data-know="'+c.id+'">\u2713 I know this</button>'+
   '</div>';
   h += '<div class="dots">';
   cards.forEach(function(cc,i){ h += '<div class="dot'+(i===idx?' active':'')+'" data-jump="'+i+'"></div>'; });
@@ -400,6 +416,7 @@ function wire(){
   document.querySelectorAll("[data-nav]").forEach(function(el){ el.onclick=function(){ nav(parseInt(el.getAttribute("data-nav"),10)); }; });
   document.querySelectorAll("[data-jump]").forEach(function(el){ el.onclick=function(){ jump(parseInt(el.getAttribute("data-jump"),10)); }; });
   document.querySelectorAll("[data-remove]").forEach(function(el){ el.onclick=function(e){ e.stopPropagation(); removeCard(el.getAttribute("data-remove")); }; });
+  document.querySelectorAll("[data-know]").forEach(function(el){ el.onclick=function(e){ e.stopPropagation(); knowIt(el.getAttribute("data-know")); }; });
   document.querySelectorAll("[data-grade]").forEach(function(el){ el.onclick=function(){ grade(el.getAttribute("data-id"), el.getAttribute("data-grade")==="1"); }; });
   var fw=document.querySelector("[data-flip]"); if(fw) fw.onclick=function(){ flip(); };
   var rv=document.querySelector("[data-reveal]"); if(rv) rv.onclick=function(){ revealed=true; render(); };
