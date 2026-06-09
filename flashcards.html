@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0f1623" />
+<title>Flashcards</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: #0f1623; color: #e8ecf4; font-family: 'Inter', sans-serif; min-height: 100%; }
+  body { padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  .app { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 26px 16px 110px; max-width: 560px; margin: 0 auto; }
+
+  .header { text-align: center; margin-bottom: 24px; }
+  .header-eyebrow { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #4db8b0; margin-bottom: 8px; font-weight: 500; }
+  .header-title { font-family: 'Crimson Pro', Georgia, serif; font-size: 32px; font-weight: 400; color: #f0f4ff; letter-spacing: -0.02em; }
+  .header-title span { color: #4db8b0; font-style: italic; }
+  .header-sub { font-size: 13px; color: #7a8499; margin-top: 6px; }
+
+  /* bottom tab bar - thumb friendly on phones */
+  .tabbar { position: fixed; bottom: 0; left: 0; right: 0; background: #131b2b; border-top: 1px solid #242d42; display: flex; justify-content: space-around; padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); z-index: 50; }
+  .tab { flex: 1; background: none; border: none; color: #5a6480; font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 500; padding: 6px 2px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative; }
+  .tab .ico { font-size: 19px; line-height: 1; }
+  .tab.active { color: #4db8b0; }
+  .tab-badge { position: absolute; top: -2px; right: 50%; margin-right: -22px; background: #e0664f; color: #fff; font-size: 9px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
+
+  .deck-info { font-size: 12px; color: #5a6480; text-align: center; margin-bottom: 16px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .deck-info b { color: #4db8b0; font-weight: 600; }
+
+  .card-wrapper { perspective: 1200px; width: 100%; cursor: pointer; }
+  .card-inner { position: relative; width: 100%; height: 300px; transition: transform 0.55s cubic-bezier(0.4,0.2,0.2,1); transform-style: preserve-3d; }
+  .card-inner.flipped { transform: rotateY(180deg); }
+  .card-face { position: absolute; inset: 0; border-radius: 18px; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
+  .card-front { background: linear-gradient(145deg, #1e2a40, #1a243a); border: 1px solid #2a3550; box-shadow: 0 18px 50px rgba(0,0,0,0.4); }
+  .card-back { background: linear-gradient(145deg, #162830, #1a2e30); border: 1px solid #2a4040; box-shadow: 0 18px 50px rgba(0,0,0,0.4); transform: rotateY(180deg); }
+  .card-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #4db8b0; margin-bottom: 16px; font-weight: 600; }
+  .card-front .card-label { color: #6070a0; }
+  .card-word { font-family: 'Crimson Pro', Georgia, serif; font-size: 34px; font-weight: 600; color: #f0f4ff; line-height: 1.2; }
+  .card-hint { font-size: 12px; color: #3a4460; margin-top: 16px; }
+  .card-definition { font-size: 15.5px; line-height: 1.65; color: #c8d8d4; font-weight: 300; }
+
+  .card-controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; width: 100%; flex-wrap: wrap; }
+  .ctrl-btn { font-size: 24px; background: #1a2235; border: 1px solid #242d42; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #7a8499; }
+  .ctrl-btn:active:not(:disabled) { background: #242d42; }
+  .ctrl-btn:disabled { opacity: 0.25; }
+  .card-counter { font-size: 13px; color: #5a6480; min-width: 54px; text-align: center; }
+  .remove-btn { font-family: 'Inter', sans-serif; font-size: 12px; background: transparent; border: 1px solid #1a4035; border-radius: 8px; padding: 9px 16px; cursor: pointer; color: #4db8b0; }
+  .remove-btn:active { background: #0e2520; }
+
+  .dots { display: flex; gap: 6px; justify-content: center; margin-top: 18px; width: 100%; flex-wrap: wrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #242d42; cursor: pointer; }
+  .dot.active { background: #4db8b0; transform: scale(1.3); }
+
+  .panel { width: 100%; }
+  .panel-title { font-family: 'Crimson Pro', Georgia, serif; font-size: 23px; color: #c8d0e4; margin-bottom: 6px; font-weight: 400; }
+  .panel-desc { font-size: 13px; color: #5a6480; line-height: 1.55; margin-bottom: 20px; }
+
+  .field-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #4db8b0; font-weight: 500; margin-bottom: 7px; display: block; }
+  .field-input, .field-textarea { width: 100%; background: #1a2235; border: 1px solid #242d42; border-radius: 9px; padding: 13px 15px; font-family: 'Inter', sans-serif; font-size: 16px; color: #e0e6f4; resize: none; outline: none; }
+  .field-input:focus, .field-textarea:focus { border-color: #4db8b0; }
+  .field-textarea { height: 140px; line-height: 1.6; font-size: 15px; }
+  .row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .row .field-input { margin-bottom: 0; }
+  .mb { margin-bottom: 16px; }
+
+  .gen-btn { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; background: #242d42; color: #4db8b0; border: 1px solid #2a3550; border-radius: 9px; padding: 0 18px; cursor: pointer; white-space: nowrap; }
+  .gen-btn:active:not(:disabled) { background: #2a3550; }
+  .gen-btn:disabled { opacity: 0.4; }
+
+  .def-meta { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 7px; }
+  .regen-link { font-size: 12px; color: #6070a0; background: none; border: none; cursor: pointer; text-decoration: underline; }
+
+  .primary-btn { width: 100%; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; background: #4db8b0; color: #0f1623; border: none; border-radius: 10px; padding: 14px; cursor: pointer; margin-top: 18px; }
+  .primary-btn:active:not(:disabled) { background: #3da8a0; }
+  .primary-btn:disabled { opacity: 0.4; }
+
+  .toast { font-size: 13px; color: #4db8b0; margin-top: 12px; text-align: center; opacity: 0; transition: opacity 0.3s; }
+  .toast.show { opacity: 1; }
+  .err { font-size: 12.5px; color: #e0807a; margin-top: 10px; line-height: 1.5; background: #2a1020; border: 1px solid #4a2030; border-radius: 8px; padding: 10px 12px; }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #4db8b0; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .review-card { background: linear-gradient(145deg, #1e2a40, #1a243a); border: 1px solid #2a3550; border-radius: 18px; padding: 30px; box-shadow: 0 18px 50px rgba(0,0,0,0.4); text-align: center; }
+  .review-stage { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #6070a0; margin-bottom: 14px; font-weight: 600; }
+  .review-word { font-family: 'Crimson Pro', Georgia, serif; font-size: 32px; font-weight: 600; color: #f0f4ff; margin-bottom: 8px; }
+  .review-prompt { font-size: 13px; color: #5a6480; margin-bottom: 20px; }
+  .reveal-btn { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; background: #242d42; color: #c8d0e4; border: 1px solid #2a3550; border-radius: 9px; padding: 12px 28px; cursor: pointer; }
+  .review-answer { font-size: 15.5px; line-height: 1.65; color: #c8d8d4; font-weight: 300; border-top: 1px solid #2a3550; padding-top: 20px; margin-top: 4px; text-align: left; }
+  .review-grade { display: flex; gap: 10px; margin-top: 22px; }
+  .grade-btn { flex: 1; font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; border-radius: 9px; padding: 14px 8px; cursor: pointer; border: 1px solid; }
+  .grade-forgot { background: #2a1020; color: #e0807a; border-color: #4a2030; }
+  .grade-got { background: #0e2520; color: #4db8b0; border-color: #1a4035; }
+  .review-progress { font-size: 12px; color: #5a6480; text-align: center; margin-bottom: 16px; }
+  .review-progress b { color: #4db8b0; }
+
+  .all-done { text-align: center; padding: 44px 24px; background: #1a2235; border: 1px solid #242d42; border-radius: 16px; }
+  .all-done-icon { font-size: 40px; margin-bottom: 12px; color: #4db8b0; }
+  .all-done-title { font-family: 'Crimson Pro', Georgia, serif; font-size: 24px; color: #4db8b0; margin-bottom: 8px; }
+  .all-done-sub { font-size: 13px; color: #7a8499; line-height: 1.7; }
+
+  .sched-item, .list-item { display: flex; justify-content: space-between; align-items: center; background: #1a2235; border: 1px solid #242d42; border-radius: 11px; padding: 14px 16px; margin-bottom: 9px; gap: 12px; }
+  .list-item { align-items: flex-start; }
+  .sched-word, .list-word { font-family: 'Crimson Pro', Georgia, serif; font-size: 18px; font-weight: 600; color: #d0d8f0; }
+  .sched-stage { font-size: 11px; color: #5a6480; margin-top: 2px; }
+  .list-def { font-size: 12.5px; color: #5a6480; line-height: 1.5; margin-top: 4px; }
+  .sched-due { font-size: 12px; font-weight: 600; white-space: nowrap; padding: 5px 10px; border-radius: 7px; }
+  .due-now { color: #e0807a; background: #2a1020; }
+  .due-soon { color: #d4a04a; background: #2a2210; }
+  .due-later { color: #5a8a84; background: #0e2018; }
+  .list-remove { font-size: 18px; background: none; border: none; color: #4a3038; cursor: pointer; padding: 4px 8px; border-radius: 6px; flex-shrink: 0; }
+  .list-remove:active { color: #c06070; background: #2a1020; }
+
+  .empty-state { text-align: center; padding: 44px 24px; color: #3a4460; font-size: 14px; line-height: 1.8; }
+
+  .banner { width: 100%; background: #2a2210; border: 1px solid #4a3a18; border-radius: 11px; padding: 13px 15px; font-size: 12.5px; color: #d4a04a; line-height: 1.5; margin-bottom: 18px; }
+  .banner a, .link { color: #4db8b0; cursor: pointer; text-decoration: underline; }
+  .settings-note { font-size: 12px; color: #5a6480; line-height: 1.6; margin: 6px 0 18px; }
+  .ok-pill { display: inline-block; font-size: 11px; font-weight: 600; color: #4db8b0; background: #0e2520; border: 1px solid #1a4035; border-radius: 20px; padding: 3px 11px; }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+"use strict";
+
+// ---------- constants ----------
+var DAY = 24*60*60*1000;
+var INTERVALS = [1,3,7,14,30]; // days: 1d -> 3d -> 1wk -> 2wk -> 1mo
+var DECK_KEY = "flashcards-deck-v1";
+var SET_KEY  = "flashcards-settings-v1";
+
+var DEFAULTS = [
+  { front:"Phantom Lesion", back:"An abnormality that appears on medical imaging but does not actually exist in the patient. Usually caused by imaging artifacts, patient movement, or misreading normal anatomy as pathology." },
+  { front:"Anatomical Disorder", back:"A condition involving structural abnormalities of the body \u2014 organs or tissues that are malformed, mispositioned, or absent. Distinct from functional disorders, which affect how the body works rather than how it is built." },
+  { front:"Biopsy", back:"A procedure in which a small tissue or cell sample is removed for microscopic examination, used to diagnose disease (especially cancer). Types include needle, surgical, and endoscopic biopsy." }
+];
+
+// ---------- safe storage (works on phone; degrades in sandboxes) ----------
+var memStore = {};
+var storageOK = true;
+try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); } catch(e){ storageOK = false; }
+function load(key, fallback){
+  try { var v = storageOK ? localStorage.getItem(key) : memStore[key]; return v ? JSON.parse(v) : fallback; }
+  catch(e){ return fallback; }
+}
+function save(key, val){
+  try { var s = JSON.stringify(val); if(storageOK) localStorage.setItem(key,s); else memStore[key]=s; } catch(e){}
+}
+
+// ---------- state ----------
+function makeCard(c, addedAt){
+  addedAt = addedAt || Date.now();
+  return { id:(Date.now()+Math.random()).toString(36), front:c.front, back:c.back,
+           addedAt:addedAt, level:0, nextReview:addedAt + INTERVALS[0]*DAY, lastReviewed:null };
+}
+var cards = load(DECK_KEY, null);
+if(!cards){ cards = DEFAULTS.map(function(c){return makeCard(c);}); save(DECK_KEY, cards); }
+
+var settings = load(SET_KEY, { baseUrl:"https://api.groq.com/openai/v1", apiKey:"", model:"llama-3.3-70b-versatile" });
+
+var view = "browse";
+var flipped = false;
+var idx = 0;
+var revealed = false;
+var genState = { busy:false, error:"", value:"", word:"" };
+var toastMsg = "";
+
+// ---------- helpers ----------
+function dueCards(){ var now=Date.now(); return cards.filter(function(c){return c.nextReview<=now;}).sort(function(a,b){return a.nextReview-b.nextReview;}); }
+function stageLabel(level){ return level>=INTERVALS.length ? "Mastered" : ("Stage "+(level+1)+" of "+INTERVALS.length); }
+function dueLabel(next){ var d=next-Date.now(); if(d<=0) return {t:"Due now",c:"due-now"}; var days=Math.ceil(d/DAY); if(days===1) return {t:"Tomorrow",c:"due-soon"}; if(days<=3) return {t:"In "+days+" days",c:"due-soon"}; return {t:"In "+days+" days",c:"due-later"}; }
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function persist(){ save(DECK_KEY, cards); }
+
+// ---------- actions ----------
+function go(v){ view=v; revealed=false; flipped=false; render(); }
+function flip(){ flipped=!flipped; render(); }
+function nav(d){ idx=Math.max(0,Math.min(cards.length-1, idx+d)); flipped=false; render(); }
+function jump(i){ idx=i; flipped=false; render(); }
+
+function removeCard(id){
+  cards = cards.filter(function(c){return c.id!==id;});
+  if(idx>=cards.length) idx=Math.max(0,cards.length-1);
+  persist(); render();
+}
+function grade(id, remembered){
+  var t=Date.now();
+  cards = cards.map(function(c){
+    if(c.id!==id) return c;
+    var level = remembered ? c.level+1 : 0;
+    var i = Math.min(level, INTERVALS.length-1);
+    return Object.assign({}, c, { level:level, lastReviewed:t, nextReview:t + INTERVALS[i]*DAY });
+  });
+  revealed=false; persist(); render();
+}
+function addCard(word, def){
+  if(!word.trim()||!def.trim()) return;
+  cards.push(makeCard({front:word.trim(), back:def.trim()}));
+  persist();
+  genState={busy:false,error:"",value:"",word:""};
+  toastMsg="\u2713 Added \u2014 first review scheduled for tomorrow";
+  render();
+  setTimeout(function(){ toastMsg=""; render(); }, 2600);
+}
+
+function saveSettings(baseUrl, apiKey, model){
+  settings = { baseUrl:baseUrl.trim().replace(/\/+$/,""), apiKey:apiKey.trim(), model:model.trim()||"llama-3.3-70b-versatile" };
+  save(SET_KEY, settings);
+  toastMsg="\u2713 Settings saved on this device";
+  render();
+  setTimeout(function(){ toastMsg=""; render(); }, 2600);
+}
+
+// ---------- generation (OpenAI-compatible: Groq / OpenRouter / etc.) ----------
+function generate(word){
+  word = (word||"").trim();
+  if(!word) return;
+  if(!settings.apiKey){ genState.error="Add your free API key in Settings first (tap the gear)."; render(); return; }
+  genState.busy=true; genState.error=""; genState.word=word; render();
+
+  var prompt = 'Write a clear, accurate flashcard definition for the term "'+word+'". '+
+    'Keep it to 1-3 sentences a student could study from. If it is a medical, scientific, or technical term, '+
+    'include the essential meaning and any key distinction worth knowing. '+
+    'Respond with ONLY the definition text \u2014 do not repeat the term, no preamble, no quotation marks.';
+
+  fetch(settings.baseUrl + "/chat/completions", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+settings.apiKey },
+    body: JSON.stringify({ model:settings.model, max_tokens:300, temperature:0.4,
+      messages:[{role:"user", content:prompt}] })
+  })
+  .then(function(res){ return res.text().then(function(txt){ return {ok:res.ok, status:res.status, txt:txt}; }); })
+  .then(function(r){
+    var data=null; try{ data=JSON.parse(r.txt); }catch(e){}
+    if(!r.ok){
+      var m = (data && data.error && data.error.message) ? data.error.message : ("HTTP "+r.status);
+      genState.busy=false; genState.error="API error: "+m; render(); return;
+    }
+    var text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    text = (text||"").trim();
+    genState.busy=false;
+    if(text){ genState.value=text; genState.error=""; }
+    else { genState.error="No text came back. Try a different model name in Settings, or type a definition."; }
+    render();
+  })
+  .catch(function(err){
+    genState.busy=false;
+    genState.error="Couldn't reach the API ("+(err&&err.message||"network/CORS error")+"). Check the key, model, and connection.";
+    render();
+  });
+}
+
+// ---------- render ----------
+function render(){
+  var due = dueCards();
+  var html = "";
+
+  html += '<div class="header">'+
+    '<div class="header-eyebrow">Medical Vocabulary</div>'+
+    '<div class="header-title">Flash<span>cards</span></div>'+
+    '<div class="header-sub">'+cards.length+' card'+(cards.length!==1?'s':'')+' \u00b7 '+due.length+' due for review</div>'+
+  '</div>';
+
+  if(!storageOK){
+    html += '<div class="banner">Heads up: this looks like a preview that blocks saving. <b>Download this file and open it on your phone</b> so your cards and key are saved on your device.</div>';
+  }
+
+  if(view==="browse") html += renderBrowse();
+  else if(view==="review") html += renderReview(due);
+  else if(view==="add") html += renderAdd();
+  else if(view==="schedule") html += renderSchedule();
+  else if(view==="list") html += renderList();
+  else if(view==="settings") html += renderSettings();
+
+  if(toastMsg) html += '<div class="toast show">'+esc(toastMsg)+'</div>';
+
+  // tab bar
+  var tabs = [["browse","Cards","\u25A1"],["review","Review","\u21BB"],["add","Add","\uFF0B"],["schedule","Due","\u23F1"],["settings","Setup","\u2699"]];
+  html += '<div class="tabbar">';
+  tabs.forEach(function(t){
+    var active = (view===t[0] || (view==="list"&&t[0]==="browse")) ? " active":"";
+    var badge = (t[0]==="review" && due.length>0) ? '<span class="tab-badge">'+due.length+'</span>' : '';
+    html += '<button class="tab'+active+'" data-go="'+t[0]+'"><span class="ico">'+t[2]+'</span>'+t[1]+badge+'</button>';
+  });
+  html += '</div>';
+
+  document.getElementById("app").innerHTML = html;
+  wire();
+}
+
+function renderBrowse(){
+  if(cards.length===0) return '<div class="empty-state">Your deck is empty.<br/>Tap <b>Add</b> to create your first card.</div>';
+  var c = cards[idx];
+  var h = '<div class="deck-info">Card <b>'+(idx+1)+'</b> of <b>'+cards.length+'</b> \u00b7 tap to flip</div>';
+  h += '<div class="card-wrapper" data-flip="1"><div class="card-inner'+(flipped?' flipped':'')+'">'+
+    '<div class="card-face card-front"><div class="card-label">Term</div><div class="card-word">'+esc(c.front)+'</div><div class="card-hint">tap to reveal definition \u2192</div></div>'+
+    '<div class="card-face card-back"><div class="card-label">Definition</div><div class="card-definition">'+esc(c.back)+'</div></div>'+
+  '</div></div>';
+  h += '<div class="card-controls">'+
+    '<button class="ctrl-btn" data-nav="-1"'+(idx===0?' disabled':'')+'>\u2039</button>'+
+    '<span class="card-counter">'+(idx+1)+' / '+cards.length+'</span>'+
+    '<button class="ctrl-btn" data-nav="1"'+(idx===cards.length-1?' disabled':'')+'>\u203A</button>'+
+    '<button class="remove-btn" data-remove="'+c.id+'">\u2713 I know this</button>'+
+  '</div>';
+  h += '<div class="dots">';
+  cards.forEach(function(cc,i){ h += '<div class="dot'+(i===idx?' active':'')+'" data-jump="'+i+'"></div>'; });
+  h += '</div>';
+  h += '<div style="text-align:center;margin-top:22px"><span class="link" data-go="list">view all cards \u2192</span></div>';
+  return h;
+}
+
+function renderReview(due){
+  var h='<div class="panel">';
+  if(due.length===0){
+    h += '<div class="all-done"><div class="all-done-icon">\u2713</div><div class="all-done-title">All caught up</div>'+
+      '<div class="all-done-sub">No cards are due right now.<br/>New cards return 1 day after adding, then<br/>3 days, 1 week, 2 weeks, 1 month.<br/>Tap <b>Due</b> to see what is coming.</div></div>';
+  } else {
+    var c = due[0];
+    h += '<div class="review-progress"><b>'+due.length+'</b> card'+(due.length!==1?'s':'')+' due \u00b7 recall it, then grade yourself</div>';
+    h += '<div class="review-card"><div class="review-stage">'+stageLabel(c.level)+'</div><div class="review-word">'+esc(c.front)+'</div>';
+    if(!revealed){
+      h += '<div class="review-prompt">Do you remember what this means?</div><button class="reveal-btn" data-reveal="1">Show answer</button>';
+    } else {
+      h += '<div class="review-answer">'+esc(c.back)+'</div>'+
+        '<div class="review-grade">'+
+          '<button class="grade-btn grade-forgot" data-grade="0" data-id="'+c.id+'">Forgot \u2014 sooner</button>'+
+          '<button class="grade-btn grade-got" data-grade="1" data-id="'+c.id+'">Got it \u2014 space out</button>'+
+        '</div>';
+    }
+    h += '</div>';
+  }
+  return h+'</div>';
+}
+
+function renderAdd(){
+  var h='<div class="panel">';
+  h += '<div class="panel-title">Add a new card</div>';
+  if(!settings.apiKey){
+    h += '<div class="banner">Auto-definitions need a free API key. Tap <span class="link" data-go="settings">Setup \u2699</span> to add one (takes ~1 min). You can always type definitions yourself instead.</div>';
+  } else {
+    h += '<div class="panel-desc">Type a word and tap Generate \u2014 review/edit the definition, then add it. It returns for review on a spaced schedule.</div>';
+  }
+  h += '<label class="field-label">Word or Term</label>';
+  h += '<div class="row"><input class="field-input" id="word" placeholder="e.g. Hematoma" value="'+esc(genState.word)+'" />'+
+       '<button class="gen-btn" id="genBtn">'+(genState.busy?'<span class="spinner"></span>':'\u2726 Generate')+'</button></div>';
+  h += '<div class="def-meta"><label class="field-label" style="margin:0">Definition</label>'+
+       (genState.value && !genState.busy ? '<button class="regen-link" id="regen">regenerate</button>':'')+'</div>';
+  h += '<textarea class="field-textarea" id="def" placeholder="Tap Generate, or type the meaning yourself\u2026">'+esc(genState.value)+'</textarea>';
+  if(genState.error) h += '<div class="err">'+esc(genState.error)+'</div>';
+  h += '<button class="primary-btn" id="addBtn">Add to Deck</button>';
+  return h+'</div>';
+}
+
+function renderSchedule(){
+  var h='<div class="panel"><div class="panel-title">Review schedule</div>'+
+    '<div class="panel-desc">When each card resurfaces. Remembering pushes it further out; forgetting brings it back to the start.</div>';
+  if(cards.length===0) h += '<div class="empty-state">No cards yet.</div>';
+  else {
+    cards.slice().sort(function(a,b){return a.nextReview-b.nextReview;}).forEach(function(c){
+      var d=dueLabel(c.nextReview);
+      h += '<div class="sched-item"><div><div class="sched-word">'+esc(c.front)+'</div><div class="sched-stage">'+stageLabel(c.level)+'</div></div>'+
+           '<div class="sched-due '+d.c+'">'+d.t+'</div></div>';
+    });
+  }
+  return h+'</div>';
+}
+
+function renderList(){
+  var h='<div class="panel"><div class="panel-title">All cards</div><div class="panel-desc">'+cards.length+' total. Remove anything you have mastered.</div>';
+  if(cards.length===0) h += '<div class="empty-state">No cards yet.</div>';
+  else cards.forEach(function(c){
+    h += '<div class="list-item"><div><div class="list-word">'+esc(c.front)+'</div><div class="list-def">'+esc(c.back)+'</div></div>'+
+         '<button class="list-remove" data-remove="'+c.id+'">\u2715</button></div>';
+  });
+  return h+'</div>';
+}
+
+function renderSettings(){
+  var connected = settings.apiKey ? '<span class="ok-pill">Key saved</span>' : '';
+  var h='<div class="panel"><div class="panel-title">Setup '+connected+'</div>';
+  h += '<div class="panel-desc">Auto-definitions use a free, OpenAI-compatible AI provider. <b>Groq</b> is recommended: free, no credit card, runs open models.</div>';
+  h += '<div class="banner">Get a key: open <span class="link" data-ext="https://console.groq.com/keys">console.groq.com/keys</span>, sign in, create a key (starts with <b>gsk_</b>), paste it below. Your key is stored only on this device.</div>';
+  h += '<label class="field-label">API Base URL</label><input class="field-input mb" id="baseUrl" value="'+esc(settings.baseUrl)+'" />';
+  h += '<label class="field-label">API Key</label><input class="field-input mb" id="apiKey" type="password" placeholder="gsk_..." value="'+esc(settings.apiKey)+'" />';
+  h += '<label class="field-label">Model</label><input class="field-input" id="model" value="'+esc(settings.model)+'" />';
+  h += '<div class="settings-note">Default model <b>llama-3.3-70b-versatile</b> works well. For speed try <b>llama-3.1-8b-instant</b>. If a model name is rejected, check current names at console.groq.com. Works with OpenRouter/Together too \u2014 just change the base URL and key.</div>';
+  h += '<button class="primary-btn" id="saveBtn">Save settings</button>';
+  return h+'</div>';
+}
+
+// ---------- wire events ----------
+function wire(){
+  document.querySelectorAll("[data-go]").forEach(function(el){ el.onclick=function(){ go(el.getAttribute("data-go")); }; });
+  document.querySelectorAll("[data-ext]").forEach(function(el){ el.onclick=function(){ window.open(el.getAttribute("data-ext"),"_blank"); }; });
+  document.querySelectorAll("[data-nav]").forEach(function(el){ el.onclick=function(){ nav(parseInt(el.getAttribute("data-nav"),10)); }; });
+  document.querySelectorAll("[data-jump]").forEach(function(el){ el.onclick=function(){ jump(parseInt(el.getAttribute("data-jump"),10)); }; });
+  document.querySelectorAll("[data-remove]").forEach(function(el){ el.onclick=function(e){ e.stopPropagation(); removeCard(el.getAttribute("data-remove")); }; });
+  document.querySelectorAll("[data-grade]").forEach(function(el){ el.onclick=function(){ grade(el.getAttribute("data-id"), el.getAttribute("data-grade")==="1"); }; });
+  var fw=document.querySelector("[data-flip]"); if(fw) fw.onclick=function(){ flip(); };
+  var rv=document.querySelector("[data-reveal]"); if(rv) rv.onclick=function(){ revealed=true; render(); };
+
+  var genBtn=document.getElementById("genBtn");
+  if(genBtn) genBtn.onclick=function(){ var w=document.getElementById("word").value; var d=document.getElementById("def"); if(d) genState.value=d.value; generate(w); };
+  var regen=document.getElementById("regen");
+  if(regen) regen.onclick=function(){ generate(document.getElementById("word").value); };
+  var addBtn=document.getElementById("addBtn");
+  if(addBtn) addBtn.onclick=function(){ addCard(document.getElementById("word").value, document.getElementById("def").value); };
+
+  // keep typed values in state so re-render doesn't wipe them
+  var wEl=document.getElementById("word"); if(wEl) wEl.oninput=function(){ genState.word=wEl.value; };
+  var dEl=document.getElementById("def"); if(dEl) dEl.oninput=function(){ genState.value=dEl.value; };
+
+  var saveBtn=document.getElementById("saveBtn");
+  if(saveBtn) saveBtn.onclick=function(){
+    saveSettings(document.getElementById("baseUrl").value, document.getElementById("apiKey").value, document.getElementById("model").value);
+  };
+}
+
+render();
+</script>
+</body>
+</html>
