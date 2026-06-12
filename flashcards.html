@@ -126,11 +126,12 @@
   .mix-btn:active { background: #242d42; }
   .mix-btn.alt { color: #7a8499; }
 
-  .review-card { position: relative; overflow: hidden; will-change: transform; touch-action: pan-y; }
-  .swipe-hint { position: absolute; top: 18px; font-size: 14px; font-weight: 800; letter-spacing: 0.08em; padding: 6px 12px; border-radius: 9px; border: 2.5px solid; opacity: 0; pointer-events: none; z-index: 3; }
-  .swipe-hint.got { right: 16px; color: #4db8b0; border-color: #4db8b0; transform: rotate(10deg); }
-  .swipe-hint.forgot { left: 16px; color: #e0807a; border-color: #e0807a; transform: rotate(-10deg); }
-  .swipe-tip { text-align: center; font-size: 11.5px; color: #4a5570; margin-top: 16px; letter-spacing: 0.02em; }
+  .review-card { position: relative; }
+  .card-wrapper { position: relative; will-change: transform; touch-action: pan-y; }
+  .swipe-hint { position: absolute; top: 16px; font-size: 14px; font-weight: 800; letter-spacing: 0.08em; padding: 6px 12px; border-radius: 9px; border: 2.5px solid; opacity: 0; pointer-events: none; z-index: 5; }
+  .swipe-hint.got { right: 14px; color: #4db8b0; border-color: #4db8b0; transform: rotate(10deg); }
+  .swipe-hint.forgot { left: 14px; color: #e0807a; border-color: #e0807a; transform: rotate(-10deg); }
+  .swipe-tip { text-align: center; font-size: 11.5px; color: #4a5570; margin-top: 14px; letter-spacing: 0.02em; }
 </style>
 </head>
 <body>
@@ -266,7 +267,23 @@ function saveSettings(baseUrl, apiKey, model){
   setTimeout(function(){ toastMsg=""; render(); }, 2600);
 }
 
-// ---------- swipe-to-grade (Review tab) ----------
+// ---------- swipe-to-grade (Cards tab) ----------
+function browseGrade(id, remembered){
+  var t=Date.now();
+  cards = cards.map(function(c){
+    if(c.id!==id) return c;
+    var level = remembered ? c.level+1 : 0;
+    var i = Math.min(level, INTERVALS.length-1);
+    return Object.assign({}, c, { level:level, lastReviewed:t, nextReview:t + INTERVALS[i]*DAY });
+  });
+  persist();
+  var n=getOrdered().length;
+  if(idx < n-1) idx++;            // advance to the next card
+  flipped=false;
+  toastMsg = remembered ? "\u2713 Got it \u2014 spaced out" : "\u21BA Forgot \u2014 back soon";
+  render();
+  setTimeout(function(){ toastMsg=""; render(); }, 1600);
+}
 function setSwipeHints(dx){
   var go=document.getElementById("hintGot"), fo=document.getElementById("hintForgot");
   if(go) go.style.opacity = dx>0 ? Math.min(1, dx/110) : 0;
@@ -274,35 +291,47 @@ function setSwipeHints(dx){
 }
 function swipeStart(e){
   var card=e.currentTarget;
-  swipe.el=card; swipe.id=card.getAttribute("data-id");
-  swipe.dragging=true;
-  swipe.startX=(e.touches?e.touches[0]:e).clientX;
-  swipe.x=0;
+  swipe.el=card; swipe.id=card.getAttribute("data-id"); swipe.mode=card.getAttribute("data-swipe");
+  swipe.dragging=true; swipe.decided=false; swipe.moved=false;
+  var p=e.touches?e.touches[0]:e;
+  swipe.startX=p.clientX; swipe.startY=p.clientY; swipe.x=0;
   card.style.transition="none";
 }
 function swipeMove(e){
   if(!swipe.dragging||!swipe.el) return;
-  var cx=(e.touches?e.touches[0]:e).clientX;
-  swipe.x=cx-swipe.startX;
-  swipe.el.style.transform="translateX("+swipe.x+"px) rotate("+(swipe.x*0.05)+"deg)";
-  setSwipeHints(swipe.x);
-  if(e.cancelable && Math.abs(swipe.x)>6) e.preventDefault();
+  var p=e.touches?e.touches[0]:e;
+  var dx=p.clientX-swipe.startX, dy=p.clientY-swipe.startY;
+  if(!swipe.decided){
+    if(Math.abs(dx)<5 && Math.abs(dy)<5) return;        // too small to decide yet
+    if(Math.abs(dy)>Math.abs(dx)){                       // vertical intent: let the page scroll
+      swipe.dragging=false; swipe.el.style.transition=""; swipe.el.style.transform=""; return;
+    }
+    swipe.decided=true;
+  }
+  swipe.x=dx; swipe.moved=true;
+  swipe.el.style.transform="translateX("+dx+"px) rotate("+(dx*0.05)+"deg)";
+  setSwipeHints(dx);
+  if(e.cancelable) e.preventDefault();
 }
 function swipeEnd(){
-  if(!swipe.dragging||!swipe.el) return;
+  if(!swipe.dragging) return;
   swipe.dragging=false;
-  var dx=swipe.x, el=swipe.el, id=swipe.id, W=window.innerWidth||400;
-  if(Math.abs(dx)>90){
+  if(!swipe.el) return;
+  var dx=swipe.x, el=swipe.el, id=swipe.id, mode=swipe.mode, W=window.innerWidth||400;
+  if(swipe.moved && Math.abs(dx)>90){
     var dir=dx>0?1:-1, remembered=dx>0;
     el.style.transition="transform 0.35s ease, opacity 0.35s ease";
     el.style.transform="translateX("+(dir*W*1.2)+"px) rotate("+(dir*16)+"deg)";
     el.style.opacity="0";
     swipe.el=null;
-    setTimeout(function(){ grade(id, remembered); }, 330);
-  } else {
+    setTimeout(function(){ if(mode==="review") grade(id, remembered); else browseGrade(id, remembered); }, 330);
+  } else if(swipe.moved){
     el.style.transition="transform 0.25s ease";
     el.style.transform="";
     setSwipeHints(0);
+  } else {                                                // no drag = a tap: flip the card
+    el.style.transition=""; el.style.transform="";
+    if(mode==="browse") flip();
   }
 }
 function generate(word){
@@ -387,8 +416,11 @@ function renderBrowse(){
   if(idx>=list.length) idx=list.length-1;
   var c = list[idx];
   var h = '<div class="deck-info">Card <b>'+(idx+1)+'</b> of <b>'+list.length+'</b> \u00b7 tap to flip'+(browseOrder?' \u00b7 mixed':'')+'</div>';
-  h += '<div class="card-wrapper" data-flip="1"><div class="card-inner'+(flipped?' flipped':'')+'">'+
-    '<div class="card-face card-front"><div class="card-label">Term</div><div class="card-word">'+esc(c.front)+'</div><div class="card-hint">tap to reveal definition \u2192</div></div>'+
+  h += '<div class="card-wrapper" data-swipe="browse" data-id="'+c.id+'">'+
+    '<div class="swipe-hint got" id="hintGot">\u2713 GOT IT</div>'+
+    '<div class="swipe-hint forgot" id="hintForgot">\u2715 FORGOT</div>'+
+    '<div class="card-inner'+(flipped?' flipped':'')+'">'+
+    '<div class="card-face card-front"><div class="card-label">Term</div><div class="card-word">'+esc(c.front)+'</div><div class="card-hint">tap to flip \u00b7 swipe to grade</div></div>'+
     '<div class="card-face card-back"><div class="card-label">Definition</div><div class="card-definition">'+esc(c.back)+'</div></div>'+
   '</div></div>';
   h += '<div class="card-controls">'+
@@ -400,6 +432,7 @@ function renderBrowse(){
   h += '<div class="dots">';
   list.forEach(function(cc,i){ h += '<div class="dot'+(i===idx?' active':'')+'" data-jump="'+i+'"></div>'; });
   h += '</div>';
+  h += '<div class="swipe-tip">\u2190 swipe left if you forgot \u00b7 swipe right if you got it \u2192</div>';
   h += '<div class="mix-row">'+
        '<button class="mix-btn" data-mix="1">\uD83D\uDD00 Mix cards</button>'+
        (browseOrder?'<button class="mix-btn alt" data-reset="1">Reset order</button>':'')+
@@ -415,11 +448,8 @@ function renderReview(due){
       '<div class="all-done-sub">No cards are due right now.<br/>New cards return 1 day after adding, then<br/>3 days, 1 week, 2 weeks, 1 month.<br/>Tap <b>Due</b> to see what is coming.</div></div>';
   } else {
     var c = due[0];
-    h += '<div class="review-progress"><b>'+due.length+'</b> card'+(due.length!==1?'s':'')+' due \u00b7 recall it, then swipe or grade</div>';
-    h += '<div class="review-card" id="reviewCard" data-id="'+c.id+'">'+
-         '<div class="swipe-hint got" id="hintGot">\u2713 GOT IT</div>'+
-         '<div class="swipe-hint forgot" id="hintForgot">\u2715 FORGOT</div>'+
-         '<div class="review-stage">'+stageLabel(c.level)+'</div><div class="review-word">'+esc(c.front)+'</div>';
+    h += '<div class="review-progress"><b>'+due.length+'</b> card'+(due.length!==1?'s':'')+' due \u00b7 recall it, then grade yourself</div>';
+    h += '<div class="review-card"><div class="review-stage">'+stageLabel(c.level)+'</div><div class="review-word">'+esc(c.front)+'</div>';
     if(!revealed){
       h += '<div class="review-prompt">Do you remember what this means?</div><button class="reveal-btn" data-reveal="1">Show answer</button>';
     } else {
@@ -430,7 +460,6 @@ function renderReview(due){
         '</div>';
     }
     h += '</div>';
-    h += '<div class="swipe-tip">\u2190 swipe left if you forgot \u00b7 swipe right if you got it \u2192</div>';
   }
   return h+'</div>';
 }
@@ -502,13 +531,12 @@ function wire(){
   document.querySelectorAll("[data-grade]").forEach(function(el){ el.onclick=function(){ grade(el.getAttribute("data-id"), el.getAttribute("data-grade")==="1"); }; });
   document.querySelectorAll("[data-mix]").forEach(function(el){ el.onclick=function(){ mixCards(); }; });
   document.querySelectorAll("[data-reset]").forEach(function(el){ el.onclick=function(){ resetOrder(); }; });
-  var fw=document.querySelector("[data-flip]"); if(fw) fw.onclick=function(){ flip(); };
   var rv=document.querySelector("[data-reveal]"); if(rv) rv.onclick=function(){ revealed=true; render(); };
 
-  // swipe-to-grade: attach drag start to the current review card
+  // swipe-to-grade: attach drag start to the current browse card
   swipe.el=null; swipe.dragging=false;
-  var rc=document.getElementById("reviewCard");
-  if(rc){ rc.addEventListener("touchstart", swipeStart, {passive:true}); rc.addEventListener("mousedown", swipeStart); }
+  var sc=document.querySelector("[data-swipe]");
+  if(sc){ sc.addEventListener("touchstart", swipeStart, {passive:true}); sc.addEventListener("mousedown", swipeStart); }
 
   var genBtn=document.getElementById("genBtn");
   if(genBtn) genBtn.onclick=function(){ var w=document.getElementById("word").value; var d=document.getElementById("def"); if(d) genState.value=d.value; generate(w); };
