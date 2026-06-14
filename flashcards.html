@@ -183,6 +183,10 @@ var genState = { busy:false, error:"", value:"", word:"" };
 var toastMsg = "";
 var browseOrder = null; // when set, an array of card ids defining a shuffled browse order
 var swipe = { el:null, id:null, startX:0, x:0, dragging:false };
+var pendingImport = null; // cards parsed from a link, awaiting confirmation
+var importText = "";
+var importMsg = "";
+var shareLink = "";
 
 // ---------- helpers ----------
 function dueCards(){ var now=Date.now(); return cards.filter(function(c){return c.nextReview<=now;}).sort(function(a,b){return a.nextReview-b.nextReview;}); }
@@ -191,6 +195,53 @@ function dueLabel(next){ var d=next-Date.now(); if(d<=0) return {t:"Due now",c:"
 function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function persist(){ save(DECK_KEY, cards); }
 function shuffleArr(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+// ---------- import / share ----------
+function strToB64(s){ return btoa(unescape(encodeURIComponent(s))); }
+function b64ToStr(b){ return decodeURIComponent(escape(atob(b))); }
+function buildShareLink(list){
+  var json = JSON.stringify({ cards: list.map(function(c){ return { front:c.front, back:c.back }; }) });
+  return location.origin + location.pathname + "#import=" + encodeURIComponent(strToB64(json));
+}
+// Accepts JSON ({cards:[{front,back}]} or a bare array, with several key aliases)
+// OR plain lines in "Term :: Definition" format. Returns [{front,back}] or null.
+function parsePack(text){
+  text=(text||"").trim();
+  if(!text) return null;
+  var out=[];
+  if(text.charAt(0)==="{" || text.charAt(0)==="["){
+    try{
+      var data=JSON.parse(text);
+      var arr = Array.isArray(data) ? data : (data && data.cards ? data.cards : null);
+      if(arr) arr.forEach(function(o){
+        if(!o) return;
+        var f=o.front||o.term||o.word||o.q||o.question;
+        var b=o.back||o.definition||o.meaning||o.def||o.a||o.answer;
+        if(f && b) out.push({ front:String(f).trim(), back:String(b).trim() });
+      });
+    }catch(e){ return null; }
+  } else {
+    text.split(/\r?\n/).forEach(function(line){
+      line=line.trim(); if(!line) return;
+      var sep = line.indexOf("::")>=0 ? "::" : (line.indexOf("\t")>=0 ? "\t" : null);
+      if(!sep) return;
+      var i=line.indexOf(sep);
+      var f=line.slice(0,i).trim(), b=line.slice(i+sep.length).trim();
+      if(f && b) out.push({ front:f, back:b });
+    });
+  }
+  return out.length ? out : null;
+}
+function importCards(list){
+  if(!list || !list.length) return;
+  list.forEach(function(c){ cards.push(makeCard({ front:c.front, back:c.back })); });
+  persist();
+  var n=list.length;
+  pendingImport=null; importText=""; importMsg="";
+  toastMsg="\u2713 Imported "+n+" card"+(n!==1?"s":"")+" \u2014 first review tomorrow";
+  view="browse"; idx=0; browseOrder=null; flipped=false;
+  render();
+  setTimeout(function(){ toastMsg=""; render(); }, 2800);
+}
 // Browse order: natural by default, or a shuffled list of ids when "Mix" is on.
 function getOrdered(){
   if(!browseOrder) return cards;
@@ -390,6 +441,7 @@ function render(){
   if(view==="browse") html += renderBrowse();
   else if(view==="review") html += renderReview(due);
   else if(view==="add") html += renderAdd();
+  else if(view==="import") html += renderImport();
   else if(view==="schedule") html += renderSchedule();
   else if(view==="list") html += renderList();
   else if(view==="settings") html += renderSettings();
@@ -397,7 +449,7 @@ function render(){
   if(toastMsg) html += '<div class="toast show">'+esc(toastMsg)+'</div>';
 
   // tab bar
-  var tabs = [["browse","Cards","\u25A1"],["review","Review","\u21BB"],["add","Add","\uFF0B"],["schedule","Due","\u23F1"],["settings","Setup","\u2699"]];
+  var tabs = [["browse","Cards","\u25A1"],["review","Review","\u21BB"],["add","Add","\uFF0B"],["import","Import","\u21E9"],["schedule","Due","\u23F1"],["settings","Setup","\u2699"]];
   html += '<div class="tabbar">';
   tabs.forEach(function(t){
     var active = (view===t[0] || (view==="list"&&t[0]==="browse")) ? " active":"";
@@ -483,6 +535,27 @@ function renderAdd(){
   return h+'</div>';
 }
 
+function renderImport(){
+  var h='<div class="panel"><div class="panel-title">Import a pack</div>';
+  h += '<div class="panel-desc">Ask Claude to build a flashcard pack for an article, then paste it here \u2014 or just open the link Claude gives you. Imported cards join the same spaced-repetition schedule and keep returning even after you mark them known.</div>';
+  if(pendingImport && pendingImport.length){
+    h += '<div class="banner" style="color:#4db8b0;background:#0e2520;border-color:#1a4035">Found <b>'+pendingImport.length+'</b> card'+(pendingImport.length!==1?'s':'')+' in this link.<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
+         '<button class="mix-btn" data-importlink="1">Add '+pendingImport.length+' cards</button>'+
+         '<button class="mix-btn alt" data-discardlink="1">Discard</button></div></div>';
+  }
+  h += '<label class="field-label">Paste pack (JSON, or "Term :: Definition" lines)</label>';
+  h += '<textarea class="field-textarea" id="importText" placeholder=\'{"cards":[{"front":"Tensor","back":"A multi-dimensional array of numbers..."}]}\' style="height:160px">'+esc(importText)+'</textarea>';
+  if(importMsg) h += '<div class="err">'+esc(importMsg)+'</div>';
+  h += '<button class="primary-btn" id="importBtn">Add cards</button>';
+  h += '<div class="settings-note">Tip \u2014 ask Claude: \u201cMake me an importable flashcard pack for [article]. Assume I don\u2019t know [terms]. Output a JSON object with a cards array of front/back, plus an import link.\u201d</div>';
+  h += '<div style="border-top:1px solid #242d42;margin-top:22px;padding-top:20px">';
+  h += '<label class="field-label">Share my deck</label>';
+  h += '<button class="mix-btn" data-makelink="1">Create a link of my '+cards.length+' cards</button>';
+  if(shareLink) h += '<textarea class="field-textarea" readonly id="shareBox" style="height:96px;margin-top:12px;font-size:12px">'+esc(shareLink)+'</textarea><div class="settings-note">Open this on another device to copy your deck there, or paste it into any QR-code generator.</div>';
+  h += '</div>';
+  return h+'</div>';
+}
+
 function renderSchedule(){
   var h='<div class="panel"><div class="panel-title">Review schedule</div>'+
     '<div class="panel-desc">When each card resurfaces. Remembering pushes it further out; forgetting brings it back to the start.</div>';
@@ -531,6 +604,17 @@ function wire(){
   document.querySelectorAll("[data-grade]").forEach(function(el){ el.onclick=function(){ grade(el.getAttribute("data-id"), el.getAttribute("data-grade")==="1"); }; });
   document.querySelectorAll("[data-mix]").forEach(function(el){ el.onclick=function(){ mixCards(); }; });
   document.querySelectorAll("[data-reset]").forEach(function(el){ el.onclick=function(){ resetOrder(); }; });
+  var importBtn=document.getElementById("importBtn");
+  if(importBtn) importBtn.onclick=function(){
+    var t=document.getElementById("importText").value; importText=t;
+    var parsed=parsePack(t);
+    if(!parsed){ importMsg="Couldn't read that. Paste JSON with a cards array, or lines like  Term :: Definition"; render(); return; }
+    importMsg=""; importCards(parsed);
+  };
+  var ilink=document.querySelector("[data-importlink]"); if(ilink) ilink.onclick=function(){ importCards(pendingImport); };
+  var dlink=document.querySelector("[data-discardlink]"); if(dlink) dlink.onclick=function(){ pendingImport=null; render(); };
+  var mlink=document.querySelector("[data-makelink]"); if(mlink) mlink.onclick=function(){ shareLink=buildShareLink(cards); render(); };
+  var itEl=document.getElementById("importText"); if(itEl) itEl.oninput=function(){ importText=itEl.value; };
   var rv=document.querySelector("[data-reveal]"); if(rv) rv.onclick=function(){ revealed=true; render(); };
 
   // swipe-to-grade: attach drag start to the current browse card
@@ -559,6 +643,21 @@ window.addEventListener("mousemove", swipeMove);
 window.addEventListener("mouseup", swipeEnd);
 window.addEventListener("touchmove", swipeMove, {passive:false});
 window.addEventListener("touchend", swipeEnd);
+
+// If opened via an import link (#import=base64 or #add=urlencoded-json), stage the cards.
+(function(){
+  var h = location.hash || "";
+  var json = null;
+  try{
+    if(h.indexOf("#import=")===0) json = b64ToStr(decodeURIComponent(h.slice(8)));
+    else if(h.indexOf("#add=")===0) json = decodeURIComponent(h.slice(5));
+  }catch(e){ json=null; }
+  if(json){
+    var parsed = parsePack(json);
+    if(parsed){ pendingImport = parsed; view = "import"; }
+    try{ history.replaceState(null, "", location.pathname + location.search); }catch(e){}
+  }
+})();
 
 render();
 </script>
