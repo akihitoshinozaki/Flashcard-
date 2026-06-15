@@ -168,10 +168,11 @@ function save(key, val){
 function makeCard(c, addedAt){
   addedAt = addedAt || Date.now();
   return { id:(Date.now()+Math.random()).toString(36), front:c.front, back:c.back,
-           addedAt:addedAt, level:0, nextReview:addedAt + INTERVALS[0]*DAY, lastReviewed:null };
+           addedAt:addedAt, level:0, nextReview:addedAt + INTERVALS[0]*DAY, lastReviewed:null, inRotation:false };
 }
 var cards = load(DECK_KEY, null);
 if(!cards){ cards = DEFAULTS.map(function(c){return makeCard(c);}); save(DECK_KEY, cards); }
+else { cards.forEach(function(c){ if(typeof c.inRotation==="undefined") c.inRotation = (c.lastReviewed!=null) || (c.level>0); }); }
 
 var settings = load(SET_KEY, { baseUrl:"https://api.groq.com/openai/v1", apiKey:"", model:"llama-3.3-70b-versatile" });
 
@@ -251,11 +252,16 @@ function getOrdered(){
   cards.forEach(function(c){ if(!seen[c.id]) list.push(c); }); // append any new/unmixed cards
   return list;
 }
+// Cards needing attention on the front page: brand-new (not yet known) OR back due for review.
+function activeList(){
+  var now=Date.now();
+  return getOrdered().filter(function(c){ return !c.inRotation || c.nextReview<=now; });
+}
 
 // ---------- actions ----------
 function go(v){ view=v; revealed=false; flipped=false; render(); }
 function flip(){ flipped=!flipped; render(); }
-function nav(d){ var n=getOrdered().length; idx=Math.max(0,Math.min(n-1, idx+d)); flipped=false; render(); }
+function nav(d){ var n=activeList().length; idx=Math.max(0,Math.min(n-1, idx+d)); flipped=false; render(); }
 function jump(i){ idx=i; flipped=false; render(); }
 
 function mixCards(){
@@ -270,7 +276,7 @@ function resetOrder(){ browseOrder=null; idx=0; flipped=false; render(); }
 
 function removeCard(id){
   cards = cards.filter(function(c){return c.id!==id;});
-  var n=getOrdered().length;
+  var n=activeList().length;
   if(idx>=n) idx=Math.max(0,n-1);
   persist(); render();
 }
@@ -319,21 +325,27 @@ function saveSettings(baseUrl, apiKey, model){
 }
 
 // ---------- swipe-to-grade (Cards tab) ----------
+// Swipe right = "I know it": send the card into spaced review (and stretch the interval each time).
+// Swipe left  = "I don't know": keep it on the front page so it keeps showing up now.
 function browseGrade(id, remembered){
   var t=Date.now();
   cards = cards.map(function(c){
     if(c.id!==id) return c;
-    var level = remembered ? c.level+1 : 0;
-    var i = Math.min(level, INTERVALS.length-1);
-    return Object.assign({}, c, { level:level, lastReviewed:t, nextReview:t + INTERVALS[i]*DAY });
+    if(remembered){
+      var lvl = c.inRotation ? Math.min(c.level+1, INTERVALS.length-1) : 0;
+      return Object.assign({}, c, { inRotation:true, level:lvl, lastReviewed:t, nextReview:t + INTERVALS[lvl]*DAY });
+    }
+    return Object.assign({}, c, { inRotation:false, level:0 }); // stays active on the front page
   });
   persist();
-  var n=getOrdered().length;
-  if(idx < n-1) idx++;            // advance to the next card
+  var n=activeList().length;
+  if(n===0) idx=0;
+  else if(remembered){ if(idx>=n) idx=n-1; }   // card left the page; the next one slides into its place
+  else idx=(idx+1)%n;                            // card stays; move on to the next one to study
   flipped=false;
-  toastMsg = remembered ? "\u2713 Got it \u2014 spaced out" : "\u21BA Forgot \u2014 back soon";
+  toastMsg = remembered ? "\u2713 Got it \u2014 sent to review" : "\u21BA Keeping it here to study";
   render();
-  setTimeout(function(){ toastMsg=""; render(); }, 1600);
+  setTimeout(function(){ toastMsg=""; render(); }, 1500);
 }
 function setSwipeHints(dx){
   var go=document.getElementById("hintGot"), fo=document.getElementById("hintForgot");
@@ -375,7 +387,7 @@ function swipeEnd(){
     el.style.transform="translateX("+(dir*W*1.2)+"px) rotate("+(dir*16)+"deg)";
     el.style.opacity="0";
     swipe.el=null;
-    setTimeout(function(){ if(mode==="review") grade(id, remembered); else browseGrade(id, remembered); }, 330);
+    setTimeout(function(){ browseGrade(id, remembered); }, 330);
   } else if(swipe.moved){
     el.style.transition="transform 0.25s ease";
     el.style.transform="";
@@ -425,13 +437,13 @@ function generate(word){
 
 // ---------- render ----------
 function render(){
-  var due = dueCards();
+  var act = activeList().length;
   var html = "";
 
   html += '<div class="header">'+
     '<div class="header-eyebrow">Medical Vocabulary</div>'+
     '<div class="header-title">Flash<span>cards</span></div>'+
-    '<div class="header-sub">'+cards.length+' card'+(cards.length!==1?'s':'')+' \u00b7 '+due.length+' due for review</div>'+
+    '<div class="header-sub">'+cards.length+' card'+(cards.length!==1?'s':'')+' \u00b7 '+act+' to study</div>'+
   '</div>';
 
   if(!storageOK){
@@ -439,7 +451,6 @@ function render(){
   }
 
   if(view==="browse") html += renderBrowse();
-  else if(view==="review") html += renderReview(due);
   else if(view==="add") html += renderAdd();
   else if(view==="import") html += renderImport();
   else if(view==="schedule") html += renderSchedule();
@@ -449,11 +460,11 @@ function render(){
   if(toastMsg) html += '<div class="toast show">'+esc(toastMsg)+'</div>';
 
   // tab bar
-  var tabs = [["browse","Cards","\u25A1"],["review","Review","\u21BB"],["add","Add","\uFF0B"],["import","Import","\u21E9"],["schedule","Due","\u23F1"],["settings","Setup","\u2699"]];
+  var tabs = [["browse","Cards","\u25A1"],["add","Add","\uFF0B"],["import","Import","\u21E9"],["schedule","Due","\u23F1"],["settings","Setup","\u2699"]];
   html += '<div class="tabbar">';
   tabs.forEach(function(t){
     var active = (view===t[0] || (view==="list"&&t[0]==="browse")) ? " active":"";
-    var badge = (t[0]==="review" && due.length>0) ? '<span class="tab-badge">'+due.length+'</span>' : '';
+    var badge = (t[0]==="browse" && act>0) ? '<span class="tab-badge">'+act+'</span>' : '';
     html += '<button class="tab'+active+'" data-go="'+t[0]+'"><span class="ico">'+t[2]+'</span>'+t[1]+badge+'</button>';
   });
   html += '</div>';
@@ -463,14 +474,16 @@ function render(){
 }
 
 function renderBrowse(){
-  if(cards.length===0) return '<div class="empty-state">Your deck is empty.<br/>Tap <b>Add</b> to create your first card.</div>';
-  var list = getOrdered();
+  if(cards.length===0) return '<div class="empty-state">Your deck is empty.<br/>Tap <b>Add</b> or <b>Import</b> to create cards.</div>';
+  var list = activeList();
+  if(list.length===0) return '<div class="all-done"><div class="all-done-icon">\u2713</div><div class="all-done-title">Nothing to study now</div><div class="all-done-sub">Cards you swiped \u201cI know\u201d will come back here when<br/>their review time arrives (1 day \u2192 3 days \u2192 1 week \u2192 2 weeks \u2192 1 month).<br/>Tap <b>Due</b> to see what is coming, or <b>Add</b> / <b>Import</b> more.</div></div>';
   if(idx>=list.length) idx=list.length-1;
+  if(idx<0) idx=0;
   var c = list[idx];
-  var h = '<div class="deck-info">Card <b>'+(idx+1)+'</b> of <b>'+list.length+'</b> \u00b7 tap to flip'+(browseOrder?' \u00b7 mixed':'')+'</div>';
+  var h = '<div class="deck-info"><b>'+list.length+'</b> to study'+(browseOrder?' \u00b7 mixed':'')+' \u00b7 tap to flip</div>';
   h += '<div class="card-wrapper" data-swipe="browse" data-id="'+c.id+'">'+
-    '<div class="swipe-hint got" id="hintGot">\u2713 GOT IT</div>'+
-    '<div class="swipe-hint forgot" id="hintForgot">\u2715 FORGOT</div>'+
+    '<div class="swipe-hint got" id="hintGot">\u2713 I KNOW IT</div>'+
+    '<div class="swipe-hint forgot" id="hintForgot">\u21BA NOT YET</div>'+
     '<div class="card-inner'+(flipped?' flipped':'')+'">'+
     '<div class="card-face card-front"><div class="card-label">Term</div><div class="card-word">'+esc(c.front)+'</div><div class="card-hint">tap to flip \u00b7 swipe to grade</div></div>'+
     '<div class="card-face card-back"><div class="card-label">Definition</div><div class="card-definition">'+esc(c.back)+'</div></div>'+
@@ -478,13 +491,9 @@ function renderBrowse(){
   h += '<div class="card-controls">'+
     '<button class="ctrl-btn" data-nav="-1"'+(idx===0?' disabled':'')+'>\u2039</button>'+
     '<span class="card-counter">'+(idx+1)+' / '+list.length+'</span>'+
-    '<button class="ctrl-btn" data-nav="1"'+(idx===list.length-1?' disabled':'')+'>\u203A</button>'+
-    '<button class="remove-btn" data-know="'+c.id+'">\u2713 I know this</button>'+
+    '<button class="ctrl-btn" data-nav="1"'+(idx>=list.length-1?' disabled':'')+'>\u203A</button>'+
   '</div>';
-  h += '<div class="dots">';
-  list.forEach(function(cc,i){ h += '<div class="dot'+(i===idx?' active':'')+'" data-jump="'+i+'"></div>'; });
-  h += '</div>';
-  h += '<div class="swipe-tip">\u2190 swipe left if you forgot \u00b7 swipe right if you got it \u2192</div>';
+  h += '<div class="swipe-tip">\u2190 swipe left: still learning (stays here) \u00b7 swipe right: I know it (sent to review) \u2192</div>';
   h += '<div class="mix-row">'+
        '<button class="mix-btn" data-mix="1">\uD83D\uDD00 Mix cards</button>'+
        (browseOrder?'<button class="mix-btn alt" data-reset="1">Reset order</button>':'')+
@@ -558,12 +567,17 @@ function renderImport(){
 
 function renderSchedule(){
   var h='<div class="panel"><div class="panel-title">Review schedule</div>'+
-    '<div class="panel-desc">When each card resurfaces. Remembering pushes it further out; forgetting brings it back to the start.</div>';
+    '<div class="panel-desc">Cards you swiped \u201cI know\u201d are scheduled to return to the Cards page. The rest are still on the front page now.</div>';
   if(cards.length===0) h += '<div class="empty-state">No cards yet.</div>';
   else {
-    cards.slice().sort(function(a,b){return a.nextReview-b.nextReview;}).forEach(function(c){
-      var d=dueLabel(c.nextReview);
-      h += '<div class="sched-item"><div><div class="sched-word">'+esc(c.front)+'</div><div class="sched-stage">'+stageLabel(c.level)+'</div></div>'+
+    cards.slice().sort(function(a,b){
+      var aw=a.inRotation?1:0, bw=b.inRotation?1:0;
+      if(aw!==bw) return aw-bw;
+      return a.nextReview-b.nextReview;
+    }).forEach(function(c){
+      var stage = c.inRotation ? stageLabel(c.level) : "On the Cards page";
+      var d = c.inRotation ? dueLabel(c.nextReview) : { t:"Studying", c:"due-now" };
+      h += '<div class="sched-item"><div><div class="sched-word">'+esc(c.front)+'</div><div class="sched-stage">'+stage+'</div></div>'+
            '<div class="sched-due '+d.c+'">'+d.t+'</div></div>';
     });
   }
@@ -600,8 +614,6 @@ function wire(){
   document.querySelectorAll("[data-nav]").forEach(function(el){ el.onclick=function(){ nav(parseInt(el.getAttribute("data-nav"),10)); }; });
   document.querySelectorAll("[data-jump]").forEach(function(el){ el.onclick=function(){ jump(parseInt(el.getAttribute("data-jump"),10)); }; });
   document.querySelectorAll("[data-remove]").forEach(function(el){ el.onclick=function(e){ e.stopPropagation(); removeCard(el.getAttribute("data-remove")); }; });
-  document.querySelectorAll("[data-know]").forEach(function(el){ el.onclick=function(e){ e.stopPropagation(); knowIt(el.getAttribute("data-know")); }; });
-  document.querySelectorAll("[data-grade]").forEach(function(el){ el.onclick=function(){ grade(el.getAttribute("data-id"), el.getAttribute("data-grade")==="1"); }; });
   document.querySelectorAll("[data-mix]").forEach(function(el){ el.onclick=function(){ mixCards(); }; });
   document.querySelectorAll("[data-reset]").forEach(function(el){ el.onclick=function(){ resetOrder(); }; });
   var importBtn=document.getElementById("importBtn");
