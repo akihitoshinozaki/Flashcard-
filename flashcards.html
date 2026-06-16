@@ -145,6 +145,7 @@ var DAY = 24*60*60*1000;
 var INTERVALS = [1,3,7,14,30]; // days: 1d -> 3d -> 1wk -> 2wk -> 1mo
 var DECK_KEY = "flashcards-deck-v1";
 var SET_KEY  = "flashcards-settings-v1";
+var SESSION_KEY = "flashcards-session-v1";
 
 var DEFAULTS = [
   { front:"Phantom Lesion", back:"An abnormality that appears on medical imaging but does not actually exist in the patient. Usually caused by imaging artifacts, patient movement, or misreading normal anatomy as pathology." },
@@ -188,6 +189,16 @@ var pendingImport = null; // cards parsed from a link, awaiting confirmation
 var importText = "";
 var importMsg = "";
 var shareLink = "";
+
+// Restore last session (current position + mixed order) so a refresh resumes where you left off.
+(function(){
+  var s = load(SESSION_KEY, null);
+  if(s){
+    if(typeof s.idx === "number") idx = s.idx;
+    if(s.browseOrder && s.browseOrder.length) browseOrder = s.browseOrder;
+  }
+})();
+function persistSession(){ save(SESSION_KEY, { idx:idx, browseOrder:browseOrder }); }
 
 // ---------- helpers ----------
 function dueCards(){ var now=Date.now(); return cards.filter(function(c){return c.nextReview<=now;}).sort(function(a,b){return a.nextReview-b.nextReview;}); }
@@ -470,6 +481,7 @@ function render(){
   html += '</div>';
 
   document.getElementById("app").innerHTML = html;
+  persistSession();
   wire();
 }
 
