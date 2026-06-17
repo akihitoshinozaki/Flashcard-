@@ -127,11 +127,13 @@
   .mix-btn.alt { color: #7a8499; }
 
   .review-card { position: relative; }
-  .card-wrapper { position: relative; will-change: transform; touch-action: pan-y; }
-  .swipe-hint { position: absolute; top: 16px; font-size: 14px; font-weight: 800; letter-spacing: 0.08em; padding: 6px 12px; border-radius: 9px; border: 2.5px solid; opacity: 0; pointer-events: none; z-index: 5; }
-  .swipe-hint.got { right: 14px; color: #4db8b0; border-color: #4db8b0; transform: rotate(10deg); }
-  .swipe-hint.forgot { left: 14px; color: #e0807a; border-color: #e0807a; transform: rotate(-10deg); }
-  .swipe-tip { text-align: center; font-size: 11.5px; color: #4a5570; margin-top: 14px; letter-spacing: 0.02em; }
+  .card-wrapper { position: relative; will-change: transform; touch-action: none; }
+  .swipe-hint { position: absolute; font-size: 14px; font-weight: 800; letter-spacing: 0.06em; padding: 6px 12px; border-radius: 9px; border: 2.5px solid; opacity: 0; pointer-events: none; z-index: 5; white-space: nowrap; }
+  .swipe-hint.got { top: 16px; right: 14px; color: #4db8b0; border-color: #4db8b0; transform: rotate(10deg); }
+  .swipe-hint.forgot { top: 16px; left: 14px; color: #e0807a; border-color: #e0807a; transform: rotate(-10deg); }
+  .swipe-hint.up { top: 14px; left: 50%; transform: translateX(-50%); color: #d4a04a; border-color: #d4a04a; }
+  .swipe-tip { text-align: center; font-size: 11.5px; color: #4a5570; margin-top: 14px; letter-spacing: 0.01em; line-height: 1.5; }
+  .tab-badge.alt { background: #d4a04a; }
 </style>
 </head>
 <body>
@@ -169,17 +171,18 @@ function save(key, val){
 function makeCard(c, addedAt){
   addedAt = addedAt || Date.now();
   return { id:(Date.now()+Math.random()).toString(36), front:c.front, back:c.back,
-           addedAt:addedAt, level:0, nextReview:addedAt + INTERVALS[0]*DAY, lastReviewed:null, inRotation:false };
+           addedAt:addedAt, level:0, nextReview:addedAt + INTERVALS[0]*DAY, lastReviewed:null, inRotation:false, almost:false };
 }
 var cards = load(DECK_KEY, null);
 if(!cards){ cards = DEFAULTS.map(function(c){return makeCard(c);}); save(DECK_KEY, cards); }
-else { cards.forEach(function(c){ if(typeof c.inRotation==="undefined") c.inRotation = (c.lastReviewed!=null) || (c.level>0); }); }
+else { cards.forEach(function(c){ if(typeof c.inRotation==="undefined") c.inRotation = (c.lastReviewed!=null) || (c.level>0); if(typeof c.almost==="undefined") c.almost=false; }); }
 
 var settings = load(SET_KEY, { baseUrl:"https://api.groq.com/openai/v1", apiKey:"", model:"llama-3.3-70b-versatile" });
 
 var view = "browse";
 var flipped = false;
 var idx = 0;
+var aidx = 0;
 var revealed = false;
 var genState = { busy:false, error:"", value:"", word:"" };
 var toastMsg = "";
@@ -195,10 +198,11 @@ var shareLink = "";
   var s = load(SESSION_KEY, null);
   if(s){
     if(typeof s.idx === "number") idx = s.idx;
+    if(typeof s.aidx === "number") aidx = s.aidx;
     if(s.browseOrder && s.browseOrder.length) browseOrder = s.browseOrder;
   }
 })();
-function persistSession(){ save(SESSION_KEY, { idx:idx, browseOrder:browseOrder }); }
+function persistSession(){ save(SESSION_KEY, { idx:idx, aidx:aidx, browseOrder:browseOrder }); }
 
 // ---------- helpers ----------
 function dueCards(){ var now=Date.now(); return cards.filter(function(c){return c.nextReview<=now;}).sort(function(a,b){return a.nextReview-b.nextReview;}); }
@@ -266,13 +270,21 @@ function getOrdered(){
 // Cards needing attention on the front page: brand-new (not yet known) OR back due for review.
 function activeList(){
   var now=Date.now();
-  return getOrdered().filter(function(c){ return !c.inRotation || c.nextReview<=now; });
+  return getOrdered().filter(function(c){ return !c.almost && (!c.inRotation || c.nextReview<=now); });
+}
+// Cards you "kind of understand" — held in the Almost section.
+function almostList(){
+  return cards.filter(function(c){ return c.almost; });
 }
 
 // ---------- actions ----------
 function go(v){ view=v; revealed=false; flipped=false; render(); }
 function flip(){ flipped=!flipped; render(); }
-function nav(d){ var n=activeList().length; idx=Math.max(0,Math.min(n-1, idx+d)); flipped=false; render(); }
+function nav(d){
+  if(view==="almost"){ var na=almostList().length; aidx=Math.max(0,Math.min(na-1, aidx+d)); }
+  else { var n=activeList().length; idx=Math.max(0,Math.min(n-1, idx+d)); }
+  flipped=false; render();
+}
 function jump(i){ idx=i; flipped=false; render(); }
 
 function mixCards(){
@@ -335,40 +347,51 @@ function saveSettings(baseUrl, apiKey, model){
   setTimeout(function(){ toastMsg=""; render(); }, 2600);
 }
 
-// ---------- swipe-to-grade (Cards tab) ----------
-// Swipe right = "I know it": send the card into spaced review (and stretch the interval each time).
-// Swipe left  = "I don't know": keep it on the front page so it keeps showing up now.
-function browseGrade(id, remembered){
+// ---------- swipe-to-grade (Cards & Almost tabs) ----------
+// gesture: "right" = I know it (-> spaced review); "left" = main:still-learning / almost:back-to-main;
+//          "up" = kind of understand (-> Almost section, or stays if already there).
+function handleSwipe(id, mode, gesture){
   var t=Date.now();
   cards = cards.map(function(c){
     if(c.id!==id) return c;
-    if(remembered){
+    if(gesture==="right"){
       var lvl = c.inRotation ? Math.min(c.level+1, INTERVALS.length-1) : 0;
-      return Object.assign({}, c, { inRotation:true, level:lvl, lastReviewed:t, nextReview:t + INTERVALS[lvl]*DAY });
+      return Object.assign({}, c, { almost:false, inRotation:true, level:lvl, lastReviewed:t, nextReview:t+INTERVALS[lvl]*DAY });
     }
-    return Object.assign({}, c, { inRotation:false, level:0 }); // stays active on the front page
+    if(gesture==="up") return Object.assign({}, c, { almost:true, inRotation:false });
+    return Object.assign({}, c, { almost:false, inRotation:false, level:0 }); // left
   });
   persist();
-  var n=activeList().length;
-  if(n===0) idx=0;
-  else if(remembered){ if(idx>=n) idx=n-1; }   // card left the page; the next one slides into its place
-  else idx=(idx+1)%n;                            // card stays; move on to the next one to study
+  if(mode==="almost"){
+    var na=almostList().length;
+    if(na===0) aidx=0;
+    else if(gesture==="up") aidx=(aidx+1)%na;   // stays here; move to next
+    else if(aidx>=na) aidx=na-1;                 // left/right: card left this section
+  } else {
+    var n=activeList().length;
+    if(n===0) idx=0;
+    else if(gesture==="left") idx=(idx+1)%n;     // stays on main; move to next
+    else if(idx>=n) idx=n-1;                      // up/right: card left main
+  }
   flipped=false;
-  toastMsg = remembered ? "\u2713 Got it \u2014 sent to review" : "\u21BA Keeping it here to study";
+  toastMsg = gesture==="right" ? "\u2713 Got it \u2014 sent to review"
+           : gesture==="up" ? "\u2248 Moved to Almost"
+           : (mode==="almost" ? "\u2190 Back to main pack" : "\u21BA Keeping it here to study");
   render();
   setTimeout(function(){ toastMsg=""; render(); }, 1500);
 }
-function setSwipeHints(dx){
-  var go=document.getElementById("hintGot"), fo=document.getElementById("hintForgot");
-  if(go) go.style.opacity = dx>0 ? Math.min(1, dx/110) : 0;
-  if(fo) fo.style.opacity = dx<0 ? Math.min(1, -dx/110) : 0;
+function setSwipeHints(x, y, axis){
+  var go=document.getElementById("hintGot"), fo=document.getElementById("hintForgot"), up=document.getElementById("hintUp");
+  if(go) go.style.opacity = (axis==="h" && x>0) ? Math.min(1, x/110) : 0;
+  if(fo) fo.style.opacity = (axis==="h" && x<0) ? Math.min(1, -x/110) : 0;
+  if(up) up.style.opacity = (axis==="v" && y<0) ? Math.min(1, -y/90) : 0;
 }
 function swipeStart(e){
   var card=e.currentTarget;
   swipe.el=card; swipe.id=card.getAttribute("data-id"); swipe.mode=card.getAttribute("data-swipe");
-  swipe.dragging=true; swipe.decided=false; swipe.moved=false;
+  swipe.dragging=true; swipe.decided=false; swipe.moved=false; swipe.axis=null;
   var p=e.touches?e.touches[0]:e;
-  swipe.startX=p.clientX; swipe.startY=p.clientY; swipe.x=0;
+  swipe.startX=p.clientX; swipe.startY=p.clientY; swipe.x=0; swipe.y=0;
   card.style.transition="none";
 }
 function swipeMove(e){
@@ -376,36 +399,37 @@ function swipeMove(e){
   var p=e.touches?e.touches[0]:e;
   var dx=p.clientX-swipe.startX, dy=p.clientY-swipe.startY;
   if(!swipe.decided){
-    if(Math.abs(dx)<5 && Math.abs(dy)<5) return;        // too small to decide yet
-    if(Math.abs(dy)>Math.abs(dx)){                       // vertical intent: let the page scroll
-      swipe.dragging=false; swipe.el.style.transition=""; swipe.el.style.transform=""; return;
-    }
-    swipe.decided=true;
+    if(Math.abs(dx)<6 && Math.abs(dy)<6) return;
+    if(Math.abs(dx)>=Math.abs(dy)){ swipe.axis="h"; swipe.decided=true; }
+    else if(dy<0){ swipe.axis="v"; swipe.decided=true; }   // upward
+    else { swipe.dragging=false; swipe.el.style.transition=""; swipe.el.style.transform=""; return; } // down -> let it scroll
   }
-  swipe.x=dx; swipe.moved=true;
-  swipe.el.style.transform="translateX("+dx+"px) rotate("+(dx*0.05)+"deg)";
-  setSwipeHints(dx);
+  swipe.moved=true;
+  if(swipe.axis==="h"){ swipe.x=dx; swipe.el.style.transform="translateX("+dx+"px) rotate("+(dx*0.05)+"deg)"; }
+  else { swipe.y=dy; swipe.el.style.transform="translateY("+dy+"px) scale("+Math.max(0.9, 1+dy*0.0006)+")"; }
+  setSwipeHints(swipe.x, swipe.y, swipe.axis);
   if(e.cancelable) e.preventDefault();
 }
 function swipeEnd(){
   if(!swipe.dragging) return;
   swipe.dragging=false;
   if(!swipe.el) return;
-  var dx=swipe.x, el=swipe.el, id=swipe.id, mode=swipe.mode, W=window.innerWidth||400;
-  if(swipe.moved && Math.abs(dx)>90){
-    var dir=dx>0?1:-1, remembered=dx>0;
-    el.style.transition="transform 0.35s ease, opacity 0.35s ease";
-    el.style.transform="translateX("+(dir*W*1.2)+"px) rotate("+(dir*16)+"deg)";
+  var el=swipe.el, id=swipe.id, mode=swipe.mode, W=window.innerWidth||400, H=window.innerHeight||700;
+  var gesture=null;
+  if(swipe.axis==="h" && Math.abs(swipe.x)>90) gesture = swipe.x>0 ? "right" : "left";
+  else if(swipe.axis==="v" && swipe.y < -80) gesture = "up";
+  if(gesture){
+    el.style.transition="transform 0.34s ease, opacity 0.34s ease";
+    if(gesture==="up") el.style.transform="translateY("+(-H*1.1)+"px) scale(0.85)";
+    else { var dir=gesture==="right"?1:-1; el.style.transform="translateX("+(dir*W*1.2)+"px) rotate("+(dir*16)+"deg)"; }
     el.style.opacity="0";
     swipe.el=null;
-    setTimeout(function(){ browseGrade(id, remembered); }, 330);
-  } else if(swipe.moved){
-    el.style.transition="transform 0.25s ease";
+    setTimeout(function(){ handleSwipe(id, mode, gesture); }, 320);
+  } else {
+    el.style.transition="transform 0.2s ease";
     el.style.transform="";
-    setSwipeHints(0);
-  } else {                                                // no drag = a tap: flip the card
-    el.style.transition=""; el.style.transform="";
-    if(mode==="browse") flip();
+    setSwipeHints(0,0,null);
+    if(!swipe.moved) flip(); // a tap (no drag) flips the card
   }
 }
 function generate(word){
@@ -462,6 +486,7 @@ function render(){
   }
 
   if(view==="browse") html += renderBrowse();
+  else if(view==="almost") html += renderAlmost();
   else if(view==="add") html += renderAdd();
   else if(view==="import") html += renderImport();
   else if(view==="schedule") html += renderSchedule();
@@ -471,11 +496,14 @@ function render(){
   if(toastMsg) html += '<div class="toast show">'+esc(toastMsg)+'</div>';
 
   // tab bar
-  var tabs = [["browse","Cards","\u25A1"],["add","Add","\uFF0B"],["import","Import","\u21E9"],["schedule","Due","\u23F1"],["settings","Setup","\u2699"]];
+  var almostN = almostList().length;
+  var tabs = [["browse","Cards","\u25A1"],["almost","Almost","\u2248"],["add","Add","\uFF0B"],["import","Import","\u21E9"],["schedule","Due","\u23F1"],["settings","Setup","\u2699"]];
   html += '<div class="tabbar">';
   tabs.forEach(function(t){
     var active = (view===t[0] || (view==="list"&&t[0]==="browse")) ? " active":"";
-    var badge = (t[0]==="browse" && act>0) ? '<span class="tab-badge">'+act+'</span>' : '';
+    var badge = "";
+    if(t[0]==="browse" && act>0) badge='<span class="tab-badge">'+act+'</span>';
+    else if(t[0]==="almost" && almostN>0) badge='<span class="tab-badge alt">'+almostN+'</span>';
     html += '<button class="tab'+active+'" data-go="'+t[0]+'"><span class="ico">'+t[2]+'</span>'+t[1]+badge+'</button>';
   });
   html += '</div>';
@@ -496,8 +524,9 @@ function renderBrowse(){
   h += '<div class="card-wrapper" data-swipe="browse" data-id="'+c.id+'">'+
     '<div class="swipe-hint got" id="hintGot">\u2713 I KNOW IT</div>'+
     '<div class="swipe-hint forgot" id="hintForgot">\u21BA NOT YET</div>'+
+    '<div class="swipe-hint up" id="hintUp">\u2248 KIND OF</div>'+
     '<div class="card-inner'+(flipped?' flipped':'')+'">'+
-    '<div class="card-face card-front"><div class="card-label">Term</div><div class="card-word">'+esc(c.front)+'</div><div class="card-hint">tap to flip \u00b7 swipe to grade</div></div>'+
+    '<div class="card-face card-front"><div class="card-label">Term</div><div class="card-word">'+esc(c.front)+'</div><div class="card-hint">tap to flip \u00b7 swipe to sort</div></div>'+
     '<div class="card-face card-back"><div class="card-label">Definition</div><div class="card-definition">'+esc(c.back)+'</div></div>'+
   '</div></div>';
   h += '<div class="card-controls">'+
@@ -505,7 +534,7 @@ function renderBrowse(){
     '<span class="card-counter">'+(idx+1)+' / '+list.length+'</span>'+
     '<button class="ctrl-btn" data-nav="1"'+(idx>=list.length-1?' disabled':'')+'>\u203A</button>'+
   '</div>';
-  h += '<div class="swipe-tip">\u2190 swipe left: still learning (stays here) \u00b7 swipe right: I know it (sent to review) \u2192</div>';
+  h += '<div class="swipe-tip">\u2190 still learning \u00b7 \u2191 kind of understand \u00b7 I know it \u2192</div>';
   h += '<div class="mix-row">'+
        '<button class="mix-btn" data-mix="1">\uD83D\uDD00 Mix cards</button>'+
        (browseOrder?'<button class="mix-btn alt" data-reset="1">Reset order</button>':'')+
@@ -514,27 +543,29 @@ function renderBrowse(){
   return h;
 }
 
-function renderReview(due){
-  var h='<div class="panel">';
-  if(due.length===0){
-    h += '<div class="all-done"><div class="all-done-icon">\u2713</div><div class="all-done-title">All caught up</div>'+
-      '<div class="all-done-sub">No cards are due right now.<br/>New cards return 1 day after adding, then<br/>3 days, 1 week, 2 weeks, 1 month.<br/>Tap <b>Due</b> to see what is coming.</div></div>';
-  } else {
-    var c = due[0];
-    h += '<div class="review-progress"><b>'+due.length+'</b> card'+(due.length!==1?'s':'')+' due \u00b7 recall it, then grade yourself</div>';
-    h += '<div class="review-card"><div class="review-stage">'+stageLabel(c.level)+'</div><div class="review-word">'+esc(c.front)+'</div>';
-    if(!revealed){
-      h += '<div class="review-prompt">Do you remember what this means?</div><button class="reveal-btn" data-reveal="1">Show answer</button>';
-    } else {
-      h += '<div class="review-answer">'+esc(c.back)+'</div>'+
-        '<div class="review-grade">'+
-          '<button class="grade-btn grade-forgot" data-grade="0" data-id="'+c.id+'">Forgot \u2014 sooner</button>'+
-          '<button class="grade-btn grade-got" data-grade="1" data-id="'+c.id+'">Got it \u2014 space out</button>'+
-        '</div>';
-    }
-    h += '</div>';
-  }
-  return h+'</div>';
+function renderAlmost(){
+  if(cards.length===0) return '<div class="empty-state">Your deck is empty.<br/>Tap <b>Add</b> or <b>Import</b> to create cards.</div>';
+  var list = almostList();
+  if(list.length===0) return '<div class="all-done"><div class="all-done-icon">\u2248</div><div class="all-done-title">Almost is empty</div><div class="all-done-sub">On the <b>Cards</b> page, swipe a card <b>up</b> when you<br/>kind of understand it and it will land here,<br/>so you can keep an eye on the in-between ones.</div></div>';
+  if(aidx>=list.length) aidx=list.length-1;
+  if(aidx<0) aidx=0;
+  var c = list[aidx];
+  var h = '<div class="deck-info"><b>'+list.length+'</b> almost understood \u00b7 tap to flip</div>';
+  h += '<div class="card-wrapper" data-swipe="almost" data-id="'+c.id+'">'+
+    '<div class="swipe-hint got" id="hintGot">\u2713 I KNOW IT</div>'+
+    '<div class="swipe-hint forgot" id="hintForgot">\u2190 BACK TO MAIN</div>'+
+    '<div class="swipe-hint up" id="hintUp">\u2248 STILL ALMOST</div>'+
+    '<div class="card-inner'+(flipped?' flipped':'')+'">'+
+    '<div class="card-face card-front"><div class="card-label">Almost \u00b7 Term</div><div class="card-word">'+esc(c.front)+'</div><div class="card-hint">tap to flip \u00b7 swipe to sort</div></div>'+
+    '<div class="card-face card-back"><div class="card-label">Definition</div><div class="card-definition">'+esc(c.back)+'</div></div>'+
+  '</div></div>';
+  h += '<div class="card-controls">'+
+    '<button class="ctrl-btn" data-nav="-1"'+(aidx===0?' disabled':'')+'>\u2039</button>'+
+    '<span class="card-counter">'+(aidx+1)+' / '+list.length+'</span>'+
+    '<button class="ctrl-btn" data-nav="1"'+(aidx>=list.length-1?' disabled':'')+'>\u203A</button>'+
+  '</div>';
+  h += '<div class="swipe-tip">\u2190 back to main pack \u00b7 \u2191 still almost \u00b7 I know it \u2192</div>';
+  return h;
 }
 
 function renderAdd(){
