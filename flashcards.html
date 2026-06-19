@@ -113,6 +113,14 @@
   .due-later { color: #5a8a84; background: #0e2018; }
   .list-remove { font-size: 18px; background: none; border: none; color: #4a3038; cursor: pointer; padding: 4px 8px; border-radius: 6px; flex-shrink: 0; }
   .list-remove:active { color: #c06070; background: #2a1020; }
+  .list-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .list-edit { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; background: #242d42; color: #4db8b0; border: 1px solid #2a3550; border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+  .list-edit:active { background: #2a3550; }
+  .search-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .search-row .field-input { margin-bottom: 0; }
+  .search-clear { display: none; align-items: center; justify-content: center; width: 38px; height: 44px; flex-shrink: 0; background: #1a2235; border: 1px solid #242d42; border-radius: 9px; color: #7a8499; font-size: 15px; cursor: pointer; }
+  .search-clear:active { background: #242d42; }
+  .search-count { font-size: 12px; color: #5a6480; margin: 4px 0 12px; }
 
   .empty-state { text-align: center; padding: 44px 24px; color: #3a4460; font-size: 14px; line-height: 1.8; }
 
@@ -192,6 +200,8 @@ var pendingImport = null; // cards parsed from a link, awaiting confirmation
 var importText = "";
 var importMsg = "";
 var shareLink = "";
+var editingId = null;
+var listSearch = "";
 
 // Restore last session (current position + mixed order) so a refresh resumes where you left off.
 (function(){
@@ -302,6 +312,16 @@ function removeCard(id){
   var n=activeList().length;
   if(idx>=n) idx=Math.max(0,n-1);
   persist(); render();
+}
+function startEdit(id){ editingId=id; view="edit"; render(); }
+function saveEdit(front, back){
+  if(!front.trim() || !back.trim()) return;
+  cards = cards.map(function(c){ return c.id===editingId ? Object.assign({}, c, { front:front.trim(), back:back.trim() }) : c; });
+  persist();
+  editingId=null; view="list";
+  toastMsg="\u2713 Card updated";
+  render();
+  setTimeout(function(){ toastMsg=""; render(); }, 2000);
 }
 function grade(id, remembered){
   var t=Date.now();
@@ -491,6 +511,7 @@ function render(){
   else if(view==="import") html += renderImport();
   else if(view==="schedule") html += renderSchedule();
   else if(view==="list") html += renderList();
+  else if(view==="edit") html += renderEdit();
   else if(view==="settings") html += renderSettings();
 
   if(toastMsg) html += '<div class="toast show">'+esc(toastMsg)+'</div>';
@@ -628,12 +649,50 @@ function renderSchedule(){
 }
 
 function renderList(){
-  var h='<div class="panel"><div class="panel-title">All cards</div><div class="panel-desc">'+cards.length+' total. Remove anything you have mastered.</div>';
-  if(cards.length===0) h += '<div class="empty-state">No cards yet.</div>';
-  else cards.forEach(function(c){
-    h += '<div class="list-item"><div><div class="list-word">'+esc(c.front)+'</div><div class="list-def">'+esc(c.back)+'</div></div>'+
-         '<button class="list-remove" data-remove="'+c.id+'">\u2715</button></div>';
+  var h='<div class="panel"><div class="panel-title">All cards</div><div class="panel-desc">'+cards.length+' total. Tap Edit to change a card, or \u2715 to remove it.</div>';
+  h += '<div class="search-row"><input class="field-input" id="listSearch" placeholder="\uD83D\uDD0D Search term or definition\u2026" value="'+esc(listSearch)+'" /><button class="search-clear" id="searchClear">\u2715</button></div>';
+  h += '<div class="search-count" id="searchCount"></div>';
+  if(cards.length===0){ h += '<div class="empty-state">No cards yet.</div>'; return h+'</div>'; }
+  h += '<div id="listItems">';
+  cards.forEach(function(c){
+    var key = (c.front+" "+c.back).toLowerCase();
+    h += '<div class="list-item" data-search="'+esc(key)+'"><div style="flex:1;min-width:0"><div class="list-word">'+esc(c.front)+'</div><div class="list-def">'+esc(c.back)+'</div></div>'+
+         '<div class="list-actions">'+
+           '<button class="list-edit" data-edit="'+c.id+'">Edit</button>'+
+           '<button class="list-remove" data-remove="'+c.id+'">\u2715</button>'+
+         '</div></div>';
   });
+  h += '</div>';
+  h += '<div class="empty-state" id="noMatch" style="display:none">No cards match your search.</div>';
+  return h+'</div>';
+}
+function applyListFilter(){
+  if(!document.getElementById("listSearch")) return;
+  var q=(listSearch||"").trim().toLowerCase();
+  var items=document.querySelectorAll("#listItems .list-item");
+  var shown=0;
+  items.forEach(function(el){
+    var match = !q || el.getAttribute("data-search").indexOf(q)>=0;
+    el.style.display = match ? "" : "none";
+    if(match) shown++;
+  });
+  var count=document.getElementById("searchCount");
+  if(count) count.textContent = q ? (shown+" match"+(shown!==1?"es":"")) : "";
+  var nm=document.getElementById("noMatch");
+  if(nm) nm.style.display = (q && shown===0) ? "block" : "none";
+  var clr=document.getElementById("searchClear");
+  if(clr) clr.style.display = listSearch ? "flex" : "none";
+}
+
+function renderEdit(){
+  var c = cards.filter(function(x){ return x.id===editingId; })[0];
+  if(!c) return '<div class="panel"><div class="empty-state">Card not found.<br/><span class="link" data-go="list">back to all cards \u2192</span></div></div>';
+  var h='<div class="panel"><div class="panel-title">Edit card</div>';
+  h += '<div class="panel-desc">Changes keep this card\u2019s review progress and which section it\u2019s in.</div>';
+  h += '<label class="field-label">Word or Term</label><input class="field-input mb" id="editFront" value="'+esc(c.front)+'" />';
+  h += '<label class="field-label">Definition</label><textarea class="field-textarea" id="editBack" style="height:160px">'+esc(c.back)+'</textarea>';
+  h += '<button class="primary-btn" id="saveEditBtn">Save changes</button>';
+  h += '<div style="text-align:center;margin-top:14px"><span class="link" data-go="list">cancel</span></div>';
   return h+'</div>';
 }
 
@@ -657,6 +716,14 @@ function wire(){
   document.querySelectorAll("[data-nav]").forEach(function(el){ el.onclick=function(){ nav(parseInt(el.getAttribute("data-nav"),10)); }; });
   document.querySelectorAll("[data-jump]").forEach(function(el){ el.onclick=function(){ jump(parseInt(el.getAttribute("data-jump"),10)); }; });
   document.querySelectorAll("[data-remove]").forEach(function(el){ el.onclick=function(e){ e.stopPropagation(); removeCard(el.getAttribute("data-remove")); }; });
+  document.querySelectorAll("[data-edit]").forEach(function(el){ el.onclick=function(e){ e.stopPropagation(); startEdit(el.getAttribute("data-edit")); }; });
+  var lsEl=document.getElementById("listSearch");
+  if(lsEl){ lsEl.oninput=function(){ listSearch=lsEl.value; applyListFilter(); }; }
+  var scEl=document.getElementById("searchClear");
+  if(scEl){ scEl.onclick=function(){ listSearch=""; var i=document.getElementById("listSearch"); if(i){ i.value=""; i.focus(); } applyListFilter(); }; }
+  applyListFilter();
+  var saveEditBtn=document.getElementById("saveEditBtn");
+  if(saveEditBtn) saveEditBtn.onclick=function(){ saveEdit(document.getElementById("editFront").value, document.getElementById("editBack").value); };
   document.querySelectorAll("[data-mix]").forEach(function(el){ el.onclick=function(){ mixCards(); }; });
   document.querySelectorAll("[data-reset]").forEach(function(el){ el.onclick=function(){ resetOrder(); }; });
   var importBtn=document.getElementById("importBtn");
