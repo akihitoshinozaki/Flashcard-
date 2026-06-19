@@ -458,10 +458,10 @@ function generate(word){
   if(!settings.apiKey){ genState.error="Add your free API key in Settings first (tap the gear)."; render(); return; }
   genState.busy=true; genState.error=""; genState.word=word; render();
 
-  var prompt = 'Write a clear, accurate flashcard definition for the term "'+word+'". '+
-    'Keep it to 1-3 sentences a student could study from. If it is a medical, scientific, or technical term, '+
-    'include the essential meaning and any key distinction worth knowing. '+
-    'Respond with ONLY the definition text \u2014 do not repeat the term, no preamble, no quotation marks.';
+  var prompt = 'Explain the term "'+word+'" for a flashcard, in plain, simple language a beginner could understand. '+
+    'Use everyday words and short sentences. Avoid jargon, and if you must use a technical word, explain it in the same breath. '+
+    'Where it helps, add a quick intuition, analogy, or concrete example so the idea actually clicks. '+
+    'Keep it to 1-3 sentences. Respond with ONLY the explanation text \u2014 do not repeat the term, no preamble, no quotation marks.';
 
   fetch(settings.baseUrl + "/chat/completions", {
     method:"POST",
