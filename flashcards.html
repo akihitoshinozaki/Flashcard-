@@ -14,11 +14,18 @@
   body { padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
   .app { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 26px 16px 110px; max-width: 560px; margin: 0 auto; }
 
-  .header { text-align: center; margin-bottom: 24px; }
+  .header { text-align: center; margin-bottom: 24px; position: relative; }
   .header-eyebrow { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #4db8b0; margin-bottom: 8px; font-weight: 500; }
   .header-title { font-family: 'Crimson Pro', Georgia, serif; font-size: 32px; font-weight: 400; color: #f0f4ff; letter-spacing: -0.02em; }
   .header-title span { color: #4db8b0; font-style: italic; }
   .header-sub { font-size: 13px; color: #7a8499; margin-top: 6px; }
+  .gear-btn { position: fixed; top: calc(env(safe-area-inset-top) + 12px); right: 8px; z-index: 60; width: 36px; height: 36px; border-radius: 50%; background: #1a2235; border: 1px solid #242d42; color: #9aa6c0; font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .gear-btn:active { background: #242d42; color: #4db8b0; }
+  .pack-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 14px; -webkit-overflow-scrolling: touch; }
+  .pack-row::-webkit-scrollbar { display: none; }
+  .pack-chip { flex-shrink: 0; font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; background: #1a2235; color: #9aa6c0; border: 1px solid #242d42; border-radius: 20px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+  .pack-chip.active { background: #4db8b0; color: #0f1623; border-color: #4db8b0; }
+  .pack-chip .pc-n { opacity: 0.6; font-weight: 500; margin-left: 2px; }
 
   /* bottom tab bar - thumb friendly on phones */
   .tabbar { position: fixed; bottom: 0; left: 0; right: 0; background: #131b2b; border-top: 1px solid #242d42; display: flex; justify-content: space-around; padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); z-index: 50; }
@@ -156,6 +163,7 @@ var INTERVALS = [1,3,7,14,30]; // days: 1d -> 3d -> 1wk -> 2wk -> 1mo
 var DECK_KEY = "flashcards-deck-v1";
 var SET_KEY  = "flashcards-settings-v1";
 var SESSION_KEY = "flashcards-session-v1";
+var MANUAL_PACK = "My cards";
 
 var DEFAULTS = [
   { front:"Phantom Lesion", back:"An abnormality that appears on medical imaging but does not actually exist in the patient. Usually caused by imaging artifacts, patient movement, or misreading normal anatomy as pathology." },
@@ -176,14 +184,14 @@ function save(key, val){
 }
 
 // ---------- state ----------
-function makeCard(c, addedAt){
+function makeCard(c, addedAt, pack){
   addedAt = addedAt || Date.now();
-  return { id:(Date.now()+Math.random()).toString(36), front:c.front, back:c.back,
+  return { id:(Date.now()+Math.random()).toString(36), front:c.front, back:c.back, pack: pack || MANUAL_PACK,
            addedAt:addedAt, level:0, nextReview:addedAt + INTERVALS[0]*DAY, lastReviewed:null, inRotation:false, almost:false };
 }
 var cards = load(DECK_KEY, null);
 if(!cards){ cards = DEFAULTS.map(function(c){return makeCard(c);}); save(DECK_KEY, cards); }
-else { cards.forEach(function(c){ if(typeof c.inRotation==="undefined") c.inRotation = (c.lastReviewed!=null) || (c.level>0); if(typeof c.almost==="undefined") c.almost=false; }); }
+else { cards.forEach(function(c){ if(typeof c.inRotation==="undefined") c.inRotation = (c.lastReviewed!=null) || (c.level>0); if(typeof c.almost==="undefined") c.almost=false; if(!c.pack) c.pack=MANUAL_PACK; }); }
 
 var settings = load(SET_KEY, { baseUrl:"https://api.groq.com/openai/v1", apiKey:"", model:"llama-3.3-70b-versatile" });
 
@@ -202,6 +210,9 @@ var importMsg = "";
 var shareLink = "";
 var editingId = null;
 var listSearch = "";
+var packFilter = "";      // "" = all packs; otherwise a pack name
+var importName = "";      // pack name typed in the Import view
+var pendingName = "";     // pack name suggested by an import link's JSON
 
 // Restore last session (current position + mixed order) so a refresh resumes where you left off.
 (function(){
@@ -210,9 +221,10 @@ var listSearch = "";
     if(typeof s.idx === "number") idx = s.idx;
     if(typeof s.aidx === "number") aidx = s.aidx;
     if(s.browseOrder && s.browseOrder.length) browseOrder = s.browseOrder;
+    if(typeof s.packFilter === "string") packFilter = s.packFilter;
   }
 })();
-function persistSession(){ save(SESSION_KEY, { idx:idx, aidx:aidx, browseOrder:browseOrder }); }
+function persistSession(){ save(SESSION_KEY, { idx:idx, aidx:aidx, browseOrder:browseOrder, packFilter:packFilter }); }
 
 // ---------- helpers ----------
 function dueCards(){ var now=Date.now(); return cards.filter(function(c){return c.nextReview<=now;}).sort(function(a,b){return a.nextReview-b.nextReview;}); }
@@ -228,16 +240,17 @@ function buildShareLink(list){
   var json = JSON.stringify({ cards: list.map(function(c){ return { front:c.front, back:c.back }; }) });
   return location.origin + location.pathname + "#import=" + encodeURIComponent(strToB64(json));
 }
-// Accepts JSON ({cards:[{front,back}]} or a bare array, with several key aliases)
-// OR plain lines in "Term :: Definition" format. Returns [{front,back}] or null.
+// Accepts JSON ({"name":..,"cards":[{front,back}]} or a bare array) OR "Term :: Definition" lines.
+// Returns { cards:[{front,back}], name:stringOrNull } or null.
 function parsePack(text){
   text=(text||"").trim();
   if(!text) return null;
-  var out=[];
+  var out=[], name=null;
   if(text.charAt(0)==="{" || text.charAt(0)==="["){
     try{
       var data=JSON.parse(text);
       var arr = Array.isArray(data) ? data : (data && data.cards ? data.cards : null);
+      if(data && !Array.isArray(data) && data.name) name=String(data.name).trim();
       if(arr) arr.forEach(function(o){
         if(!o) return;
         var f=o.front||o.term||o.word||o.q||o.question;
@@ -255,16 +268,17 @@ function parsePack(text){
       if(f && b) out.push({ front:f, back:b });
     });
   }
-  return out.length ? out : null;
+  return out.length ? { cards:out, name:name } : null;
 }
-function importCards(list){
+function importCards(list, packName){
   if(!list || !list.length) return;
-  list.forEach(function(c){ cards.push(makeCard({ front:c.front, back:c.back })); });
+  var pack = (packName && packName.trim()) ? packName.trim() : "Imported";
+  list.forEach(function(c){ cards.push(makeCard({ front:c.front, back:c.back }, Date.now(), pack)); });
   persist();
   var n=list.length;
-  pendingImport=null; importText=""; importMsg="";
-  toastMsg="\u2713 Imported "+n+" card"+(n!==1?"s":"")+" \u2014 first review tomorrow";
-  view="browse"; idx=0; browseOrder=null; flipped=false;
+  pendingImport=null; importText=""; importMsg=""; importName=""; pendingName="";
+  toastMsg="\u2713 Imported "+n+" card"+(n!==1?"s":"")+" into \u201c"+pack+"\u201d";
+  view="browse"; packFilter=pack; idx=0; aidx=0; browseOrder=null; flipped=false;
   render();
   setTimeout(function(){ toastMsg=""; render(); }, 2800);
 }
@@ -278,14 +292,24 @@ function getOrdered(){
   return list;
 }
 // Cards needing attention on the front page: brand-new (not yet known) OR back due for review.
+function inPack(c){ return !packFilter || c.pack===packFilter; }
 function activeList(){
   var now=Date.now();
-  return getOrdered().filter(function(c){ return !c.almost && (!c.inRotation || c.nextReview<=now); });
+  return getOrdered().filter(function(c){ return inPack(c) && !c.almost && (!c.inRotation || c.nextReview<=now); });
 }
 // Cards you "kind of understand" — held in the Almost section.
 function almostList(){
-  return cards.filter(function(c){ return c.almost; });
+  return cards.filter(function(c){ return inPack(c) && c.almost; });
 }
+// Unique pack names, "My cards" first, then in order of first appearance.
+function packList(){
+  var seen={}, out=[];
+  cards.forEach(function(c){ var p=c.pack||MANUAL_PACK; if(!seen[p]){ seen[p]=1; out.push(p); } });
+  out.sort(function(a,b){ if(a===MANUAL_PACK) return -1; if(b===MANUAL_PACK) return 1; return 0; });
+  return out;
+}
+function packCount(p){ var n=0; cards.forEach(function(c){ if((c.pack||MANUAL_PACK)===p) n++; }); return n; }
+function setPack(p){ packFilter=p; idx=0; aidx=0; flipped=false; render(); }
 
 // ---------- actions ----------
 function go(v){ view=v; revealed=false; flipped=false; render(); }
@@ -351,7 +375,7 @@ function knowIt(id){
 }
 function addCard(word, def){
   if(!word.trim()||!def.trim()) return;
-  cards.push(makeCard({front:word.trim(), back:def.trim()}));
+  cards.push(makeCard({front:word.trim(), back:def.trim()}, Date.now(), MANUAL_PACK));
   persist();
   genState={busy:false,error:"",value:"",word:""};
   toastMsg="\u2713 Added \u2014 first review scheduled for tomorrow";
@@ -496,6 +520,7 @@ function render(){
   var html = "";
 
   html += '<div class="header">'+
+    '<button class="gear-btn" data-gear="1" title="Settings">\u2699</button>'+
     '<div class="header-eyebrow">Medical Vocabulary</div>'+
     '<div class="header-title">Flash<span>cards</span></div>'+
     '<div class="header-sub">'+cards.length+' card'+(cards.length!==1?'s':'')+' \u00b7 '+act+' to study</div>'+
@@ -518,7 +543,7 @@ function render(){
 
   // tab bar
   var almostN = almostList().length;
-  var tabs = [["browse","Cards","\u25A1"],["almost","Almost","\u2248"],["add","Add","\uFF0B"],["import","Import","\u21E9"],["schedule","Due","\u23F1"],["settings","Setup","\u2699"]];
+  var tabs = [["browse","Cards","\u25A1"],["almost","Almost","\u2248"],["add","Add","\uFF0B"],["import","Import","\u21E9"],["schedule","Due","\u23F1"]];
   html += '<div class="tabbar">';
   tabs.forEach(function(t){
     var active = (view===t[0] || (view==="list"&&t[0]==="browse")) ? " active":"";
@@ -534,14 +559,26 @@ function render(){
   wire();
 }
 
+function packChips(){
+  var packs = packList();
+  if(packs.length<2 && !packFilter) return "";
+  var h='<div class="pack-row">';
+  h += '<button class="pack-chip'+(packFilter===""?" active":"")+'" data-pack="">All</button>';
+  packs.forEach(function(p){
+    h += '<button class="pack-chip'+(packFilter===p?" active":"")+'" data-pack="'+esc(p)+'">'+esc(p)+' <span class="pc-n">'+packCount(p)+'</span></button>';
+  });
+  return h+'</div>';
+}
+
 function renderBrowse(){
   if(cards.length===0) return '<div class="empty-state">Your deck is empty.<br/>Tap <b>Add</b> or <b>Import</b> to create cards.</div>';
+  var chips = packChips();
   var list = activeList();
-  if(list.length===0) return '<div class="all-done"><div class="all-done-icon">\u2713</div><div class="all-done-title">Nothing to study now</div><div class="all-done-sub">Cards you swiped \u201cI know\u201d will come back here when<br/>their review time arrives (1 day \u2192 3 days \u2192 1 week \u2192 2 weeks \u2192 1 month).<br/>Tap <b>Due</b> to see what is coming, or <b>Add</b> / <b>Import</b> more.</div></div>';
+  if(list.length===0) return chips + '<div class="all-done"><div class="all-done-icon">\u2713</div><div class="all-done-title">Nothing to study now</div><div class="all-done-sub">'+(packFilter?'No cards due in \u201c'+esc(packFilter)+'\u201d right now.':'Cards you swiped \u201cI know\u201d will come back here when their review time arrives.')+'<br/>Switch packs above, or tap <b>Add</b> / <b>Import</b>.</div></div>';
   if(idx>=list.length) idx=list.length-1;
   if(idx<0) idx=0;
   var c = list[idx];
-  var h = '<div class="deck-info"><b>'+list.length+'</b> to study'+(browseOrder?' \u00b7 mixed':'')+' \u00b7 tap to flip</div>';
+  var h = chips + '<div class="deck-info"><b>'+list.length+'</b> to study'+(browseOrder?' \u00b7 mixed':'')+' \u00b7 tap to flip</div>';
   h += '<div class="card-wrapper" data-swipe="browse" data-id="'+c.id+'">'+
     '<div class="swipe-hint got" id="hintGot">\u2713 I KNOW IT</div>'+
     '<div class="swipe-hint forgot" id="hintForgot">\u21BA NOT YET</div>'+
@@ -566,12 +603,13 @@ function renderBrowse(){
 
 function renderAlmost(){
   if(cards.length===0) return '<div class="empty-state">Your deck is empty.<br/>Tap <b>Add</b> or <b>Import</b> to create cards.</div>';
+  var chips = packChips();
   var list = almostList();
-  if(list.length===0) return '<div class="all-done"><div class="all-done-icon">\u2248</div><div class="all-done-title">Almost is empty</div><div class="all-done-sub">On the <b>Cards</b> page, swipe a card <b>up</b> when you<br/>kind of understand it and it will land here,<br/>so you can keep an eye on the in-between ones.</div></div>';
+  if(list.length===0) return chips + '<div class="all-done"><div class="all-done-icon">\u2248</div><div class="all-done-title">Almost is empty</div><div class="all-done-sub">On the <b>Cards</b> page, swipe a card <b>up</b> when you<br/>kind of understand it and it will land here'+(packFilter?' (within \u201c'+esc(packFilter)+'\u201d)':'')+'.</div></div>';
   if(aidx>=list.length) aidx=list.length-1;
   if(aidx<0) aidx=0;
   var c = list[aidx];
-  var h = '<div class="deck-info"><b>'+list.length+'</b> almost understood \u00b7 tap to flip</div>';
+  var h = chips + '<div class="deck-info"><b>'+list.length+'</b> almost understood \u00b7 tap to flip</div>';
   h += '<div class="card-wrapper" data-swipe="almost" data-id="'+c.id+'">'+
     '<div class="swipe-hint got" id="hintGot">\u2713 I KNOW IT</div>'+
     '<div class="swipe-hint forgot" id="hintForgot">\u2190 BACK TO MAIN</div>'+
@@ -610,17 +648,19 @@ function renderAdd(){
 
 function renderImport(){
   var h='<div class="panel"><div class="panel-title">Import a pack</div>';
-  h += '<div class="panel-desc">Ask Claude to build a flashcard pack for an article, then paste it here \u2014 or just open the link Claude gives you. Imported cards join the same spaced-repetition schedule and keep returning even after you mark them known.</div>';
+  h += '<div class="panel-desc">Give the pack a name, then paste a pack from Claude (or open the link Claude gives you). You can later flick through just this pack from the Cards page.</div>';
   if(pendingImport && pendingImport.length){
-    h += '<div class="banner" style="color:#4db8b0;background:#0e2520;border-color:#1a4035">Found <b>'+pendingImport.length+'</b> card'+(pendingImport.length!==1?'s':'')+' in this link.<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
-         '<button class="mix-btn" data-importlink="1">Add '+pendingImport.length+' cards</button>'+
+    h += '<div class="banner" style="color:#4db8b0;background:#0e2520;border-color:#1a4035">Found <b>'+pendingImport.length+'</b> card'+(pendingImport.length!==1?'s':'')+' in this link'+(pendingName?' (\u201c'+esc(pendingName)+'\u201d)':'')+'.<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
+         '<button class="mix-btn" data-importlink="1">Add to deck</button>'+
          '<button class="mix-btn alt" data-discardlink="1">Discard</button></div></div>';
   }
+  h += '<label class="field-label">Pack name</label>';
+  h += '<input class="field-input mb" id="packName" placeholder="e.g. FeUdal Networks" value="'+esc(importName || pendingName)+'" />';
   h += '<label class="field-label">Paste pack (JSON, or "Term :: Definition" lines)</label>';
-  h += '<textarea class="field-textarea" id="importText" placeholder=\'{"cards":[{"front":"Tensor","back":"A multi-dimensional array of numbers..."}]}\' style="height:160px">'+esc(importText)+'</textarea>';
+  h += '<textarea class="field-textarea" id="importText" placeholder=\'{"name":"My Pack","cards":[{"front":"Tensor","back":"..."}]}\' style="height:150px">'+esc(importText)+'</textarea>';
   if(importMsg) h += '<div class="err">'+esc(importMsg)+'</div>';
   h += '<button class="primary-btn" id="importBtn">Add cards</button>';
-  h += '<div class="settings-note">Tip \u2014 ask Claude: \u201cMake me an importable flashcard pack for [article]. Assume I don\u2019t know [terms]. Output a JSON object with a cards array of front/back, plus an import link.\u201d</div>';
+  h += '<div class="settings-note">Tip \u2014 ask Claude: \u201cMake me an importable flashcard pack for [article]. Assume I don\u2019t know [terms]. Output a JSON object with a name and a cards array of front/back.\u201d The name auto-fills here.</div>';
   h += '<div style="border-top:1px solid #242d42;margin-top:22px;padding-top:20px">';
   h += '<label class="field-label">Share my deck</label>';
   h += '<button class="mix-btn" data-makelink="1">Create a link of my '+cards.length+' cards</button>';
@@ -712,6 +752,8 @@ function renderSettings(){
 // ---------- wire events ----------
 function wire(){
   document.querySelectorAll("[data-go]").forEach(function(el){ el.onclick=function(){ go(el.getAttribute("data-go")); }; });
+  var gear=document.querySelector("[data-gear]"); if(gear) gear.onclick=function(){ view = (view==="settings"?"browse":"settings"); render(); };
+  document.querySelectorAll("[data-pack]").forEach(function(el){ el.onclick=function(){ setPack(el.getAttribute("data-pack")); }; });
   document.querySelectorAll("[data-ext]").forEach(function(el){ el.onclick=function(){ window.open(el.getAttribute("data-ext"),"_blank"); }; });
   document.querySelectorAll("[data-nav]").forEach(function(el){ el.onclick=function(){ nav(parseInt(el.getAttribute("data-nav"),10)); }; });
   document.querySelectorAll("[data-jump]").forEach(function(el){ el.onclick=function(){ jump(parseInt(el.getAttribute("data-jump"),10)); }; });
@@ -729,13 +771,18 @@ function wire(){
   var importBtn=document.getElementById("importBtn");
   if(importBtn) importBtn.onclick=function(){
     var t=document.getElementById("importText").value; importText=t;
+    var nm=document.getElementById("packName"); if(nm) importName=nm.value;
     var parsed=parsePack(t);
     if(!parsed){ importMsg="Couldn't read that. Paste JSON with a cards array, or lines like  Term :: Definition"; render(); return; }
-    importMsg=""; importCards(parsed);
+    importMsg=""; importCards(parsed.cards, importName || parsed.name);
   };
-  var ilink=document.querySelector("[data-importlink]"); if(ilink) ilink.onclick=function(){ importCards(pendingImport); };
-  var dlink=document.querySelector("[data-discardlink]"); if(dlink) dlink.onclick=function(){ pendingImport=null; render(); };
+  var ilink=document.querySelector("[data-importlink]"); if(ilink) ilink.onclick=function(){
+    var nm=document.getElementById("packName"); var pn = (nm && nm.value.trim()) ? nm.value : pendingName;
+    importCards(pendingImport, pn);
+  };
+  var dlink=document.querySelector("[data-discardlink]"); if(dlink) dlink.onclick=function(){ pendingImport=null; pendingName=""; render(); };
   var mlink=document.querySelector("[data-makelink]"); if(mlink) mlink.onclick=function(){ shareLink=buildShareLink(cards); render(); };
+  var pnEl=document.getElementById("packName"); if(pnEl) pnEl.oninput=function(){ importName=pnEl.value; };
   var itEl=document.getElementById("importText"); if(itEl) itEl.oninput=function(){ importText=itEl.value; };
   var rv=document.querySelector("[data-reveal]"); if(rv) rv.onclick=function(){ revealed=true; render(); };
 
@@ -776,7 +823,7 @@ window.addEventListener("touchend", swipeEnd);
   }catch(e){ json=null; }
   if(json){
     var parsed = parsePack(json);
-    if(parsed){ pendingImport = parsed; view = "import"; }
+    if(parsed){ pendingImport = parsed.cards; pendingName = parsed.name || ""; view = "import"; }
     try{ history.replaceState(null, "", location.pathname + location.search); }catch(e){}
   }
 })();
