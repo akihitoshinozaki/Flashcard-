@@ -1,834 +1,1260 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="theme-color" content="#0f1623" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Flashcards">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E7EAED" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#13171D" media="(prefers-color-scheme: dark)">
 <title>Flashcards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&display=swap">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { background: #0f1623; color: #e8ecf4; font-family: 'Inter', sans-serif; min-height: 100%; }
-  body { padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
-  .app { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 26px 16px 110px; max-width: 560px; margin: 0 auto; }
+:root{
+  --desk:#E7EAED; --card:#FFFFFF; --field:#F3F5F7;
+  --ink:#1E2631; --ink-2:#4B5663; --muted:#5F6A76;
+  --line:#D4DAE0; --edge:#BCC5CE;
+  --red:#E0625C; --blue:#D9E6F2;
+  --no:#BF4D3B; --almost:#8A6312; --know:#276F55;
+  --no-bg:#F6E3DF; --almost-bg:#F3EAD3; --know-bg:#DDEFE6;
+  --shadow:0 1px 1px rgba(30,38,49,.06), 0 12px 32px -14px rgba(30,38,49,.30);
+  --serif:"Newsreader","Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --sans:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --desk:#13171D; --card:#1E242C; --field:#171C22;
+    --ink:#E6EAEE; --ink-2:#B4BDC7; --muted:#8B95A1;
+    --line:#2B333C; --edge:#3D4752;
+    --red:#B4544F; --blue:#29323C;
+    --no:#E47B67; --almost:#D8AE59; --know:#5FBB96;
+    --no-bg:#3A2420; --almost-bg:#372E1B; --know-bg:#1C3328;
+    --shadow:0 1px 1px rgba(0,0,0,.35), 0 16px 36px -16px rgba(0,0,0,.75);
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--desk);color:var(--ink);font:16px/1.45 var(--sans);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+button,input,textarea{font:inherit;color:inherit}
+button{touch-action:manipulation}
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--ink-2);outline-offset:2px}
+[hidden]{display:none!important}
+a{color:inherit;text-underline-offset:3px}
 
-  .header { text-align: center; margin-bottom: 24px; position: relative; }
-  .header-eyebrow { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #4db8b0; margin-bottom: 8px; font-weight: 500; }
-  .header-title { font-family: 'Crimson Pro', Georgia, serif; font-size: 32px; font-weight: 400; color: #f0f4ff; letter-spacing: -0.02em; }
-  .header-title span { color: #4db8b0; font-style: italic; }
-  .header-sub { font-size: 13px; color: #7a8499; margin-top: 6px; }
-  .gear-btn { position: fixed; top: calc(env(safe-area-inset-top) + 12px); right: 8px; z-index: 60; width: 36px; height: 36px; border-radius: 50%; background: #1a2235; border: 1px solid #242d42; color: #9aa6c0; font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .gear-btn:active { background: #242d42; color: #4db8b0; }
-  .pack-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 14px; -webkit-overflow-scrolling: touch; }
-  .pack-row::-webkit-scrollbar { display: none; }
-  .pack-chip { flex-shrink: 0; font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; background: #1a2235; color: #9aa6c0; border: 1px solid #242d42; border-radius: 20px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
-  .pack-chip.active { background: #4db8b0; color: #0f1623; border-color: #4db8b0; }
-  .pack-chip .pc-n { opacity: 0.6; font-weight: 500; margin-left: 2px; }
+.app{max-width:480px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 20px;display:flex;flex-direction:column}
+.banner{margin:10px 20px 0;padding:10px 12px;border-radius:10px;background:var(--almost-bg);font-size:14px;line-height:1.4}
 
-  /* bottom tab bar - thumb friendly on phones */
-  .tabbar { position: fixed; bottom: 0; left: 0; right: 0; background: #131b2b; border-top: 1px solid #242d42; display: flex; justify-content: space-around; padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); z-index: 50; }
-  .tab { flex: 1; background: none; border: none; color: #5a6480; font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 500; padding: 6px 2px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative; }
-  .tab .ico { font-size: 19px; line-height: 1; }
-  .tab.active { color: #4db8b0; }
-  .tab-badge { position: absolute; top: -2px; right: 50%; margin-right: -22px; background: #e0664f; color: #fff; font-size: 9px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
+/* ---------- top bar ---------- */
+.bar{flex:none;display:flex;align-items:center;gap:10px;min-height:56px}
+.pack-btn{display:flex;align-items:center;gap:7px;min-width:0;background:none;border:0;padding:8px 0;cursor:pointer;font-weight:700;font-size:17px;text-align:left}
+.pack-btn .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pack-btn .fo{font-weight:400;color:var(--muted);white-space:nowrap}
+.pack-btn svg{flex:none;color:var(--muted)}
+.bar .sp{flex:1}
+.undo{display:flex;align-items:center;gap:5px;background:none;border:0;color:var(--ink-2);padding:8px 2px;cursor:pointer;font-size:15px}
+.count{color:var(--muted);font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
 
-  .deck-info { font-size: 12px; color: #5a6480; text-align: center; margin-bottom: 16px; letter-spacing: 0.06em; text-transform: uppercase; }
-  .deck-info b { color: #4db8b0; font-weight: 600; }
+/* ---------- study ---------- */
+.study{flex:1;min-height:0;display:flex;flex-direction:column}
+.track{flex:none;display:flex;gap:2px;height:3px;margin:0 0 20px}
+.track i{flex:1;border-radius:2px;background:var(--line)}
+.track.solid{gap:0}
+.track.solid i{border-radius:0}
+.track i.know{background:var(--know)}
+.track i.almost{background:var(--almost)}
+.track i.no{background:var(--no)}
+.track i.cur{background:var(--ink)}
 
-  .card-wrapper { perspective: 1200px; width: 100%; cursor: pointer; }
-  .card-inner { position: relative; width: 100%; height: 300px; transition: transform 0.55s cubic-bezier(0.4,0.2,0.2,1); transform-style: preserve-3d; }
-  .card-inner.flipped { transform: rotateY(180deg); }
-  .card-face { position: absolute; inset: 0; border-radius: 18px; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
-  .card-front { background: linear-gradient(145deg, #1e2a40, #1a243a); border: 1px solid #2a3550; box-shadow: 0 18px 50px rgba(0,0,0,0.4); }
-  .card-back { background: linear-gradient(145deg, #162830, #1a2e30); border: 1px solid #2a4040; box-shadow: 0 18px 50px rgba(0,0,0,0.4); transform: rotateY(180deg); }
-  .card-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #4db8b0; margin-bottom: 16px; font-weight: 600; }
-  .card-front .card-label { color: #6070a0; }
-  .card-word { font-family: 'Crimson Pro', Georgia, serif; font-size: 34px; font-weight: 600; color: #f0f4ff; line-height: 1.2; }
-  .card-hint { font-size: 12px; color: #3a4460; margin-top: 16px; }
-  .card-definition { font-size: 15.5px; line-height: 1.65; color: #c8d8d4; font-weight: 300; }
+.stage{position:relative;flex:1;min-height:250px;max-height:560px;margin:0 0 18px}
+.card{position:absolute;inset:0;perspective:1600px;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab;-webkit-touch-callout:none}
+.card:active{cursor:grabbing}
+.card.next{pointer-events:none;transform:translateY(12px) scale(.94);transform-origin:50% 100%;animation:fadein .25s ease}
+.flip{position:relative;height:100%;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.25,.8,.25,1)}
+.card.flipped .flip{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--card);border-radius:7px;box-shadow:var(--shadow);overflow:hidden;-webkit-backface-visibility:hidden;backface-visibility:hidden;transition:box-shadow .15s}
+.back{transform:rotateY(180deg)}
+.card[data-g="know"] .face{box-shadow:0 0 0 2px var(--know),var(--shadow)}
+.card[data-g="almost"] .face{box-shadow:0 0 0 2px var(--almost),var(--shadow)}
+.card[data-g="no"] .face{box-shadow:0 0 0 2px var(--no),var(--shadow)}
 
-  .card-controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; width: 100%; flex-wrap: wrap; }
-  .ctrl-btn { font-size: 24px; background: #1a2235; border: 1px solid #242d42; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #7a8499; }
-  .ctrl-btn:active:not(:disabled) { background: #242d42; }
-  .ctrl-btn:disabled { opacity: 0.25; }
-  .card-counter { font-size: 13px; color: #5a6480; min-width: 54px; text-align: center; }
-  .remove-btn { font-family: 'Inter', sans-serif; font-size: 12px; background: transparent; border: 1px solid #1a4035; border-radius: 8px; padding: 9px 16px; cursor: pointer; color: #4db8b0; }
-  .remove-btn:active { background: #0e2520; }
+.front{padding:18px 24px 20px}
+.meta{flex:none;display:flex;justify-content:space-between;gap:16px;font-size:14px;color:var(--muted);min-height:20px}
+.meta span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.term{flex:1;min-height:0;display:flex;align-items:center;overflow:hidden;font-family:var(--serif);font-weight:440;font-size:40px;line-height:1.08;letter-spacing:-.015em;font-variation-settings:"opsz" 72;overflow-wrap:break-word;hyphens:auto}
+.term span{min-width:0;max-width:100%}
+.hint{flex:none;font-size:14px;color:var(--muted)}
 
-  .dots { display: flex; gap: 6px; justify-content: center; margin-top: 18px; width: 100%; flex-wrap: wrap; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: #242d42; cursor: pointer; }
-  .dot.active { background: #4db8b0; transform: scale(1.3); }
+.bhead{flex:none;padding:16px 24px 9px;border-bottom:1.5px solid var(--red);font-family:var(--serif);font-style:italic;font-size:17px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.def{flex:1;min-height:0;overflow:hidden;margin:6px 0 0;padding:0 24px;font-family:var(--serif);font-size:var(--fs,19px);line-height:var(--lh,30px);
+  background-image:linear-gradient(transparent calc(var(--lh,30px) - 1px),var(--blue) 0);background-size:100% var(--lh,30px);background-origin:content-box;background-position:0 -2px}
 
-  .panel { width: 100%; }
-  .panel-title { font-family: 'Crimson Pro', Georgia, serif; font-size: 23px; color: #c8d0e4; margin-bottom: 6px; font-weight: 400; }
-  .panel-desc { font-size: 13px; color: #5a6480; line-height: 1.55; margin-bottom: 20px; }
+.grades{flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.g{--c:var(--ink);--b:transparent;display:flex;align-items:center;justify-content:center;gap:7px;height:56px;border-radius:14px;border:1.5px solid var(--edge);background:transparent;font-weight:700;font-size:15.5px;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}
+.g svg{flex:none;color:var(--c)}
+.g.no{--c:var(--no);--b:var(--no-bg)}
+.g.almost{--c:var(--almost);--b:var(--almost-bg)}
+.g.know{--c:var(--know);--b:var(--know-bg)}
+.g{white-space:nowrap;padding:0 6px}
+@media (max-width:360px){.g{font-size:14.5px;gap:4px}.g svg{width:14px;height:14px}.grades{gap:8px}}
+.g.hot,.g:active{background:var(--b);border-color:var(--c);color:var(--c)}
+@media (hover:hover){.g:hover{border-color:var(--c)}}
+.keys{display:none;flex:none;text-align:center;font-size:13.5px;color:var(--muted);margin:-2px 0 14px}
+@media (hover:hover) and (pointer:fine){.keys{display:block}}
 
-  .field-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #4db8b0; font-weight: 500; margin-bottom: 7px; display: block; }
-  .field-input, .field-textarea { width: 100%; background: #1a2235; border: 1px solid #242d42; border-radius: 9px; padding: 13px 15px; font-family: 'Inter', sans-serif; font-size: 16px; color: #e0e6f4; resize: none; outline: none; }
-  .field-input:focus, .field-textarea:focus { border-color: #4db8b0; }
-  .field-textarea { height: 140px; line-height: 1.6; font-size: 15px; }
-  .row { display: flex; gap: 10px; margin-bottom: 16px; }
-  .row .field-input { margin-bottom: 0; }
-  .mb { margin-bottom: 16px; }
+.done{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 2px 48px}
+.done h2{font:440 34px/1.1 var(--serif);letter-spacing:-.015em;margin:0 0 10px;font-variation-settings:"opsz" 72}
+.done p{margin:0 0 18px;color:var(--ink-2);font-size:16.5px;max-width:36ch}
+.mix{display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;margin:2px 0 26px}
+.mix .know{background:var(--know)} .mix .almost{background:var(--almost)} .mix .no{background:var(--no)}
+.actions{display:grid;gap:10px}
+.done .note{color:var(--muted);font-size:15px;margin:18px 0 0}
 
-  .gen-btn { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; background: #242d42; color: #4db8b0; border: 1px solid #2a3550; border-radius: 9px; padding: 0 18px; cursor: pointer; white-space: nowrap; }
-  .gen-btn:active:not(:disabled) { background: #2a3550; }
-  .gen-btn:disabled { opacity: 0.4; }
+/* ---------- buttons ---------- */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;border:0;border-radius:14px;background:var(--ink);color:var(--desk);font-weight:700;font-size:16px;cursor:pointer;padding:0 16px}
+.btn:disabled{opacity:.35;cursor:default}
+.btn.alt{background:transparent;color:var(--ink);border:1.5px solid var(--edge)}
+.btn.danger{background:transparent;color:var(--no);border:1.5px solid var(--edge)}
+.btn.danger.armed{background:var(--no);color:var(--card);border-color:var(--no)}
+.txt{background:none;border:0;padding:8px 0;color:var(--ink-2);text-decoration:underline;text-decoration-color:var(--edge);text-underline-offset:4px;cursor:pointer;font-size:15px}
 
-  .def-meta { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 7px; }
-  .regen-link { font-size: 12px; color: #6070a0; background: none; border: none; cursor: pointer; text-decoration: underline; }
+/* ---------- pages ---------- */
+.page{flex:none;padding:0 0 32px}
+.top{display:flex;align-items:center;min-height:56px;margin-bottom:6px}
+.title{font:440 32px/1.1 var(--serif);letter-spacing:-.015em;margin:0 0 22px;font-variation-settings:"opsz" 72}
+.h2{font:700 17px/1.3 var(--sans);margin:30px 0 6px}
+.seg{display:inline-flex;padding:3px;border-radius:12px;background:var(--line);gap:2px}
+.seg button{border:0;background:none;padding:8px 14px;border-radius:9px;font-size:15px;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.seg button.on{background:var(--card);color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg.wide{display:grid;grid-template-columns:repeat(4,1fr);width:100%}
+.seg.wide button{padding:9px 4px;font-size:14.5px}
+.field{margin-bottom:18px}
+.lbl{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:15px;color:var(--ink-2);margin-bottom:7px}
+.lbl .bad{color:var(--no)}
+.in,.ta{display:block;width:100%;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:16px;line-height:1.45;-webkit-appearance:none;appearance:none}
+.in:focus,.ta:focus{border-color:var(--ink-2)}
+.in:focus-visible,.ta:focus-visible,.sheet:focus-visible{outline:none}
+.in::placeholder,.ta::placeholder{color:var(--muted);opacity:.8}
+.ta{min-height:150px;resize:vertical}
+.ta.serif{font-family:var(--serif);font-size:18px;line-height:1.5}
+.row2{display:flex;gap:8px}
+.row2 .in{flex:1;min-width:0}
+.gen{flex:none;display:flex;align-items:center;justify-content:center;min-width:104px;border:1.5px solid var(--edge);background:transparent;border-radius:12px;padding:0 14px;font-weight:700;cursor:pointer}
+.gen:disabled{opacity:.6;cursor:default}
+.err{margin:-6px 0 16px;color:var(--no);font-size:15px}
+.help{color:var(--muted);font-size:14.5px;margin:14px 0 0;line-height:1.5}
+.help.top0{margin-top:0}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-  .primary-btn { width: 100%; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; background: #4db8b0; color: #0f1623; border: none; border-radius: 10px; padding: 14px; cursor: pointer; margin-top: 18px; }
-  .primary-btn:active:not(:disabled) { background: #3da8a0; }
-  .primary-btn:disabled { opacity: 0.4; }
+/* ---------- card list ---------- */
+.search{margin-bottom:6px}
+.filters{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
+.filters::-webkit-scrollbar{display:none}
+.filters button{flex:none;background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:12px 0 10px;color:var(--muted);font-size:15px;cursor:pointer}
+.filters button.on{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+.filters b{font-weight:400;color:var(--muted);margin-left:5px;font-variant-numeric:tabular-nums}
+.item{display:flex;gap:14px;align-items:flex-start;width:100%;padding:14px 0;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;cursor:pointer}
+.item .m{flex:1;min-width:0}
+.item .t{display:block;font:480 19px/1.25 var(--serif)}
+.item .d{display:block;color:var(--muted);font-size:14px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st{flex:none;display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);padding-top:3px;white-space:nowrap}
+.st i{width:7px;height:7px;border-radius:50%;background:var(--c)}
+.empty{color:var(--muted);padding:28px 0;margin:0}
+.foot{display:flex;flex-wrap:wrap;gap:2px 22px;padding:18px 0 0}
 
-  .toast { font-size: 13px; color: #4db8b0; margin-top: 12px; text-align: center; opacity: 0; transition: opacity 0.3s; }
-  .toast.show { opacity: 1; }
-  .err { font-size: 12.5px; color: #e0807a; margin-top: 10px; line-height: 1.5; background: #2a1020; border: 1px solid #4a2030; border-radius: 8px; padding: 10px 12px; }
+/* ---------- tabs ---------- */
+.tabs{flex:none;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);padding:0 12px env(safe-area-inset-bottom)}
+.tab{position:relative;height:58px;background:none;border:0;color:var(--muted);font-size:15.5px;cursor:pointer}
+.tab.on{color:var(--ink);font-weight:700}
+.tab.on::after{content:"";position:absolute;top:-1px;left:50%;width:28px;margin-left:-14px;height:2px;border-radius:0 0 2px 2px;background:var(--ink)}
+.tab .n{font-weight:400;color:var(--muted);font-size:13.5px;margin-left:5px;font-variant-numeric:tabular-nums}
 
-  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #4db8b0; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* ---------- sheet ---------- */
+.scrim{position:fixed;inset:0;z-index:50;background:rgba(12,16,22,.42);opacity:0;pointer-events:none;transition:opacity .22s}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:51;max-width:480px;margin:0 auto;max-height:88vh;max-height:88dvh;overflow-y:auto;background:var(--card);border-radius:20px 20px 0 0;padding:10px 20px calc(22px + env(safe-area-inset-bottom));transform:translateY(105%);visibility:hidden;transition:transform .3s cubic-bezier(.2,.8,.2,1),visibility 0s .3s}
+.sheet.open{transform:none;visibility:visible;transition:transform .3s cubic-bezier(.2,.8,.2,1),visibility 0s}
+.sheet .in,.sheet .ta{background:var(--field)}
+.grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 18px}
+.sh-t{font:440 26px/1.15 var(--serif);letter-spacing:-.01em;margin:0 0 14px;font-variation-settings:"opsz" 72}
+.opt{display:flex;align-items:center;gap:10px;width:100%;padding:13px 0;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;cursor:pointer;font-size:16.5px}
+.opt .ck{flex:none;width:18px;display:flex}
+.opt .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.opt .c{color:var(--muted);font-size:14.5px;white-space:nowrap}
+.opt.on .n{font-weight:700}
+.sub{font-size:15px;color:var(--ink-2);margin:22px 0 8px}
+.fdesc{color:var(--muted);font-size:14.5px;margin:8px 0 0}
+.switch{position:relative;display:flex;align-items:center;justify-content:space-between;padding:18px 0 4px;font-size:16.5px;cursor:pointer}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.sw{position:relative;flex:none;width:46px;height:28px;border-radius:14px;background:var(--line);transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s}
+.switch input:checked + .sw{background:var(--ink)}
+.switch input:checked + .sw::after{transform:translateX(18px);background:var(--desk)}
+.switch input:focus-visible + .sw{outline:2px solid var(--ink-2);outline-offset:2px}
+.link-box{min-height:96px;font-size:13px;word-break:break-all}
 
-  .review-card { background: linear-gradient(145deg, #1e2a40, #1a243a); border: 1px solid #2a3550; border-radius: 18px; padding: 30px; box-shadow: 0 18px 50px rgba(0,0,0,0.4); text-align: center; }
-  .review-stage { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #6070a0; margin-bottom: 14px; font-weight: 600; }
-  .review-word { font-family: 'Crimson Pro', Georgia, serif; font-size: 32px; font-weight: 600; color: #f0f4ff; margin-bottom: 8px; }
-  .review-prompt { font-size: 13px; color: #5a6480; margin-bottom: 20px; }
-  .reveal-btn { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; background: #242d42; color: #c8d0e4; border: 1px solid #2a3550; border-radius: 9px; padding: 12px 28px; cursor: pointer; }
-  .review-answer { font-size: 15.5px; line-height: 1.65; color: #c8d8d4; font-weight: 300; border-top: 1px solid #2a3550; padding-top: 20px; margin-top: 4px; text-align: left; }
-  .review-grade { display: flex; gap: 10px; margin-top: 22px; }
-  .grade-btn { flex: 1; font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; border-radius: 9px; padding: 14px 8px; cursor: pointer; border: 1px solid; }
-  .grade-forgot { background: #2a1020; color: #e0807a; border-color: #4a2030; }
-  .grade-got { background: #0e2520; color: #4db8b0; border-color: #1a4035; }
-  .review-progress { font-size: 12px; color: #5a6480; text-align: center; margin-bottom: 16px; }
-  .review-progress b { color: #4db8b0; }
+/* ---------- toast ---------- */
+.toast{position:fixed;left:50%;bottom:calc(74px + env(safe-area-inset-bottom));z-index:60;transform:translate(-50%,10px);opacity:0;pointer-events:none;background:var(--ink);color:var(--desk);padding:10px 16px;border-radius:12px;font-size:15px;max-width:calc(100vw - 40px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.over{bottom:auto;top:calc(env(safe-area-inset-top) + 14px)}
 
-  .all-done { text-align: center; padding: 44px 24px; background: #1a2235; border: 1px solid #242d42; border-radius: 16px; }
-  .all-done-icon { font-size: 40px; margin-bottom: 12px; color: #4db8b0; }
-  .all-done-title { font-family: 'Crimson Pro', Georgia, serif; font-size: 24px; color: #4db8b0; margin-bottom: 8px; }
-  .all-done-sub { font-size: 13px; color: #7a8499; line-height: 1.7; }
-
-  .sched-item, .list-item { display: flex; justify-content: space-between; align-items: center; background: #1a2235; border: 1px solid #242d42; border-radius: 11px; padding: 14px 16px; margin-bottom: 9px; gap: 12px; }
-  .list-item { align-items: flex-start; }
-  .sched-word, .list-word { font-family: 'Crimson Pro', Georgia, serif; font-size: 18px; font-weight: 600; color: #d0d8f0; }
-  .sched-stage { font-size: 11px; color: #5a6480; margin-top: 2px; }
-  .list-def { font-size: 12.5px; color: #5a6480; line-height: 1.5; margin-top: 4px; }
-  .sched-due { font-size: 12px; font-weight: 600; white-space: nowrap; padding: 5px 10px; border-radius: 7px; }
-  .due-now { color: #e0807a; background: #2a1020; }
-  .due-soon { color: #d4a04a; background: #2a2210; }
-  .due-later { color: #5a8a84; background: #0e2018; }
-  .list-remove { font-size: 18px; background: none; border: none; color: #4a3038; cursor: pointer; padding: 4px 8px; border-radius: 6px; flex-shrink: 0; }
-  .list-remove:active { color: #c06070; background: #2a1020; }
-  .list-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-  .list-edit { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; background: #242d42; color: #4db8b0; border: 1px solid #2a3550; border-radius: 7px; padding: 6px 12px; cursor: pointer; }
-  .list-edit:active { background: #2a3550; }
-  .search-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
-  .search-row .field-input { margin-bottom: 0; }
-  .search-clear { display: none; align-items: center; justify-content: center; width: 38px; height: 44px; flex-shrink: 0; background: #1a2235; border: 1px solid #242d42; border-radius: 9px; color: #7a8499; font-size: 15px; cursor: pointer; }
-  .search-clear:active { background: #242d42; }
-  .search-count { font-size: 12px; color: #5a6480; margin: 4px 0 12px; }
-
-  .empty-state { text-align: center; padding: 44px 24px; color: #3a4460; font-size: 14px; line-height: 1.8; }
-
-  .banner { width: 100%; background: #2a2210; border: 1px solid #4a3a18; border-radius: 11px; padding: 13px 15px; font-size: 12.5px; color: #d4a04a; line-height: 1.5; margin-bottom: 18px; }
-  .banner a, .link { color: #4db8b0; cursor: pointer; text-decoration: underline; }
-  .settings-note { font-size: 12px; color: #5a6480; line-height: 1.6; margin: 6px 0 18px; }
-  .ok-pill { display: inline-block; font-size: 11px; font-weight: 600; color: #4db8b0; background: #0e2520; border: 1px solid #1a4035; border-radius: 20px; padding: 3px 11px; }
-
-  .mix-row { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
-  .mix-btn { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; background: #1a2235; color: #c8d0e4; border: 1px solid #2a3550; border-radius: 9px; padding: 10px 18px; cursor: pointer; }
-  .mix-btn:active { background: #242d42; }
-  .mix-btn.alt { color: #7a8499; }
-
-  .review-card { position: relative; }
-  .card-wrapper { position: relative; will-change: transform; touch-action: none; }
-  .swipe-hint { position: absolute; font-size: 14px; font-weight: 800; letter-spacing: 0.06em; padding: 6px 12px; border-radius: 9px; border: 2.5px solid; opacity: 0; pointer-events: none; z-index: 5; white-space: nowrap; }
-  .swipe-hint.got { top: 16px; right: 14px; color: #4db8b0; border-color: #4db8b0; transform: rotate(10deg); }
-  .swipe-hint.forgot { top: 16px; left: 14px; color: #e0807a; border-color: #e0807a; transform: rotate(-10deg); }
-  .swipe-hint.up { top: 14px; left: 50%; transform: translateX(-50%); color: #d4a04a; border-color: #d4a04a; }
-  .swipe-tip { text-align: center; font-size: 11.5px; color: #4a5570; margin-top: 14px; letter-spacing: 0.01em; line-height: 1.5; }
-  .tab-badge.alt { background: #d4a04a; }
+/* ---------- motion ---------- */
+@keyframes fadein{from{opacity:0}}
+@keyframes in-know{from{transform:translateX(120%) rotate(16deg)}}
+@keyframes in-no{from{transform:translateX(-120%) rotate(-16deg)}}
+@keyframes in-almost{from{transform:translateY(-110%) scale(.92)}}
+.card.in-know{animation:in-know .34s cubic-bezier(.2,.8,.2,1)}
+.card.in-no{animation:in-no .34s cubic-bezier(.2,.8,.2,1)}
+.card.in-almost{animation:in-almost .34s cubic-bezier(.2,.8,.2,1)}
+@media (prefers-reduced-motion:reduce){
+  .flip,.sheet,.scrim,.toast,.face{transition:none!important}
+  .card{animation:none!important}
+}
 </style>
 </head>
 <body>
-<div class="app" id="app"></div>
+<div class="app">
+  <div id="banner"></div>
+  <main id="main"></main>
+  <nav class="tabs" id="tabs" aria-label="Sections"></nav>
+</div>
+<div class="scrim" id="scrim" data-act="close-sheet"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" tabindex="-1"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 "use strict";
 
-// ---------- constants ----------
-var DAY = 24*60*60*1000;
-var INTERVALS = [1,3,7,14,30]; // days: 1d -> 3d -> 1wk -> 2wk -> 1mo
-var DECK_KEY = "flashcards-deck-v1";
-var SET_KEY  = "flashcards-settings-v1";
-var SESSION_KEY = "flashcards-session-v1";
-var MANUAL_PACK = "My cards";
-
-var DEFAULTS = [
-  { front:"Phantom Lesion", back:"An abnormality that appears on medical imaging but does not actually exist in the patient. Usually caused by imaging artifacts, patient movement, or misreading normal anatomy as pathology." },
-  { front:"Anatomical Disorder", back:"A condition involving structural abnormalities of the body \u2014 organs or tissues that are malformed, mispositioned, or absent. Distinct from functional disorders, which affect how the body works rather than how it is built." },
-  { front:"Biopsy", back:"A procedure in which a small tissue or cell sample is removed for microscopic examination, used to diagnose disease (especially cancer). Types include needle, surgical, and endoscopic biopsy." }
+/* ============================================================
+   Constants
+   ============================================================ */
+const DAY = 86400000;
+const INTERVALS = [1, 3, 7, 14, 30];           // days between reviews once you know a card
+const KEYS = {
+  deck: "flashcards-deck-v1",                  // same key as before, so existing cards carry over
+  settings: "flashcards-settings-v1",
+  prefs: "flashcards-prefs-v2",
+  round: "flashcards-round-v2",
+  oldSession: "flashcards-session-v1"
+};
+const MANUAL_PACK = "My cards";
+const STALE = 6 * 3600000;                     // a round untouched for 6 hours starts fresh
+const FOCI = [
+  ["queue",  "To study",  "New, Not yet, Almost, and cards due for review."],
+  ["no",     "Not yet",   "Only new cards and ones you marked Not yet."],
+  ["almost", "Almost",    "Only cards you marked Almost."],
+  ["all",    "All cards", "Every card in the pack, even ones not due yet."]
 ];
+const STATUS = {
+  new:    { label: "New",     color: "var(--edge)" },
+  no:     { label: "Not yet", color: "var(--no)" },
+  almost: { label: "Almost",  color: "var(--almost)" },
+  due:    { label: "Review",  color: "var(--ink)" },
+  known:  { label: "Known",   color: "var(--know)" }
+};
+const DEFAULTS = [
+  { front: "Phantom lesion", back: "An abnormality that appears on medical imaging but does not actually exist in the patient. Usually caused by imaging artifacts, patient movement, or misreading normal anatomy as pathology." },
+  { front: "Anatomical disorder", back: "A condition involving structural abnormalities of the body: organs or tissues that are malformed, mispositioned, or absent. Distinct from functional disorders, which affect how the body works rather than how it is built." },
+  { front: "Biopsy", back: "A procedure in which a small tissue or cell sample is removed for microscopic examination, used to diagnose disease (especially cancer). Types include needle, surgical, and endoscopic biopsy." }
+];
+const ICON = {
+  chev: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3.5 5.25 7 8.75l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  undo: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 3.5 2.5 6.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 6.5h7a4 4 0 0 1 0 8H7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  check: '<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  left:  '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 8H3m0 0 4-4M3 8l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  up:    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 13V3m0 0L4 7m4-4 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  right: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10m0 0-4-4m4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+};
 
-// ---------- safe storage (works on phone; degrades in sandboxes) ----------
-var memStore = {};
-var storageOK = true;
-try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); } catch(e){ storageOK = false; }
-function load(key, fallback){
-  try { var v = storageOK ? localStorage.getItem(key) : memStore[key]; return v ? JSON.parse(v) : fallback; }
-  catch(e){ return fallback; }
+/* ============================================================
+   Storage (falls back to memory where saving is blocked)
+   ============================================================ */
+const mem = {};
+let storageOK = true;
+try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); } catch (e) { storageOK = false; }
+function load(k, fallback) {
+  try { const v = storageOK ? localStorage.getItem(k) : mem[k]; return v ? JSON.parse(v) : fallback; }
+  catch (e) { return fallback; }
 }
-function save(key, val){
-  try { var s = JSON.stringify(val); if(storageOK) localStorage.setItem(key,s); else memStore[key]=s; } catch(e){}
+function save(k, v) {
+  try { const s = JSON.stringify(v); if (storageOK) localStorage.setItem(k, s); else mem[k] = s; } catch (e) {}
 }
 
-// ---------- state ----------
-function makeCard(c, addedAt, pack){
-  addedAt = addedAt || Date.now();
-  return { id:(Date.now()+Math.random()).toString(36), front:c.front, back:c.back, pack: pack || MANUAL_PACK,
-           addedAt:addedAt, level:0, nextReview:addedAt + INTERVALS[0]*DAY, lastReviewed:null, inRotation:false, almost:false };
+/* ============================================================
+   Data
+   ============================================================ */
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function makeCard(o, pack) {
+  const t = Date.now();
+  return { id: uid(), front: o.front, back: o.back, pack: pack || MANUAL_PACK, addedAt: t,
+           level: 0, nextReview: t, lastReviewed: null, inRotation: false, almost: false, seen: false };
 }
-var cards = load(DECK_KEY, null);
-if(!cards){ cards = DEFAULTS.map(function(c){return makeCard(c);}); save(DECK_KEY, cards); }
-else { cards.forEach(function(c){ if(typeof c.inRotation==="undefined") c.inRotation = (c.lastReviewed!=null) || (c.level>0); if(typeof c.almost==="undefined") c.almost=false; if(!c.pack) c.pack=MANUAL_PACK; }); }
+// Bring cards saved by the earlier version up to date without losing anything.
+function fixCard(c) {
+  if (!c.id) c.id = uid();
+  c.front = String(c.front || ""); c.back = String(c.back || "");
+  if (!c.pack) c.pack = MANUAL_PACK;
+  if (typeof c.level !== "number") c.level = 0;
+  if (typeof c.nextReview !== "number") c.nextReview = Date.now();
+  if (typeof c.inRotation !== "boolean") c.inRotation = c.lastReviewed != null || c.level > 0;
+  if (typeof c.almost !== "boolean") c.almost = false;
+  if (typeof c.seen !== "boolean") c.seen = c.lastReviewed != null || c.inRotation || c.almost;
+  if (!c.addedAt) c.addedAt = Date.now();
+  if (c.lastReviewed === undefined) c.lastReviewed = null;
+}
 
-var settings = load(SET_KEY, { baseUrl:"https://api.groq.com/openai/v1", apiKey:"", model:"llama-3.3-70b-versatile" });
+let cards = load(KEYS.deck, null);
+if (!Array.isArray(cards)) cards = DEFAULTS.map(d => makeCard(d));
+cards = cards.filter(c => c && c.front != null && c.back != null);
+cards.forEach(fixCard);
+save(KEYS.deck, cards);
 
-var view = "browse";
-var flipped = false;
-var idx = 0;
-var aidx = 0;
-var revealed = false;
-var genState = { busy:false, error:"", value:"", word:"" };
-var toastMsg = "";
-var browseOrder = null; // when set, an array of card ids defining a shuffled browse order
-var swipe = { el:null, id:null, startX:0, x:0, dragging:false };
-var pendingImport = null; // cards parsed from a link, awaiting confirmation
-var importText = "";
-var importMsg = "";
-var shareLink = "";
-var editingId = null;
-var listSearch = "";
-var packFilter = "";      // "" = all packs; otherwise a pack name
-var importName = "";      // pack name typed in the Import view
-var pendingName = "";     // pack name suggested by an import link's JSON
-
-// Restore last session (current position + mixed order) so a refresh resumes where you left off.
-(function(){
-  var s = load(SESSION_KEY, null);
-  if(s){
-    if(typeof s.idx === "number") idx = s.idx;
-    if(typeof s.aidx === "number") aidx = s.aidx;
-    if(s.browseOrder && s.browseOrder.length) browseOrder = s.browseOrder;
-    if(typeof s.packFilter === "string") packFilter = s.packFilter;
+let settings = Object.assign({ baseUrl: "https://api.groq.com/openai/v1", apiKey: "", model: "llama-3.3-70b-versatile" }, load(KEYS.settings, {}) || {});
+const storedPrefs = load(KEYS.prefs, null);
+let prefs = Object.assign({ pack: "", focus: "queue", shuffle: false, flipped: false, addPack: "" }, storedPrefs || {});
+if (!storedPrefs) {                                   // carry over the old pack filter and "Mix" setting
+  const old = load(KEYS.oldSession, null);
+  if (old) {
+    if (typeof old.packFilter === "string") prefs.pack = old.packFilter;
+    if (old.browseOrder && old.browseOrder.length) prefs.shuffle = true;
   }
-})();
-function persistSession(){ save(SESSION_KEY, { idx:idx, aidx:aidx, browseOrder:browseOrder, packFilter:packFilter }); }
+}
+if (prefs.pack && !cards.some(c => c.pack === prefs.pack)) prefs.pack = "";
+if (!FOCI.some(f => f[0] === prefs.focus)) prefs.focus = "queue";
+let round = load(KEYS.round, null);
 
-// ---------- helpers ----------
-function dueCards(){ var now=Date.now(); return cards.filter(function(c){return c.nextReview<=now;}).sort(function(a,b){return a.nextReview-b.nextReview;}); }
-function stageLabel(level){ return level>=INTERVALS.length ? "Mastered" : ("Stage "+(level+1)+" of "+INTERVALS.length); }
-function dueLabel(next){ var d=next-Date.now(); if(d<=0) return {t:"Due now",c:"due-now"}; var days=Math.ceil(d/DAY); if(days===1) return {t:"Tomorrow",c:"due-soon"}; if(days<=3) return {t:"In "+days+" days",c:"due-soon"}; return {t:"In "+days+" days",c:"due-later"}; }
-function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
-function persist(){ save(DECK_KEY, cards); }
-function shuffleArr(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
-// ---------- import / share ----------
-function strToB64(s){ return btoa(unescape(encodeURIComponent(s))); }
-function b64ToStr(b){ return decodeURIComponent(escape(atob(b))); }
-function buildShareLink(list){
-  var json = JSON.stringify({ cards: list.map(function(c){ return { front:c.front, back:c.back }; }) });
-  return location.origin + location.pathname + "#import=" + encodeURIComponent(strToB64(json));
+function persist() { save(KEYS.deck, cards); }
+function savePrefs() { save(KEYS.prefs, prefs); }
+function saveRound() { save(KEYS.round, round); }
+
+/* ============================================================
+   UI state
+   ============================================================ */
+let view = "study";
+let flipped = false;
+let undoStack = [];
+let enterFrom = null;
+let animating = false;
+let drag = null;
+let sheetOpen = false;
+let addMode = "one";
+let draft = { term: "", def: "", pack: "", err: "" };
+let imp = { name: "", text: "", auto: false };
+let busy = false;
+let libFilter = "all";
+let libQuery = "";
+let editingId = null;
+let pending = null;
+
+const $ = s => document.querySelector(s);
+const main = $("#main"), tabsEl = $("#tabs"), sheet = $("#sheet"), scrim = $("#scrim"), toastEl = $("#toast");
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+function esc(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
-// Accepts JSON ({"name":..,"cards":[{front,back}]} or a bare array) OR "Term :: Definition" lines.
-// Returns { cards:[{front,back}], name:stringOrNull } or null.
-function parsePack(text){
-  text=(text||"").trim();
-  if(!text) return null;
-  var out=[], name=null;
-  if(text.charAt(0)==="{" || text.charAt(0)==="["){
-    try{
-      var data=JSON.parse(text);
-      var arr = Array.isArray(data) ? data : (data && data.cards ? data.cards : null);
-      if(data && !Array.isArray(data) && data.name) name=String(data.name).trim();
-      if(arr) arr.forEach(function(o){
-        if(!o) return;
-        var f=o.front||o.term||o.word||o.q||o.question;
-        var b=o.back||o.definition||o.meaning||o.def||o.a||o.answer;
-        if(f && b) out.push({ front:String(f).trim(), back:String(b).trim() });
-      });
-    }catch(e){ return null; }
-  } else {
-    text.split(/\r?\n/).forEach(function(line){
-      line=line.trim(); if(!line) return;
-      var sep = line.indexOf("::")>=0 ? "::" : (line.indexOf("\t")>=0 ? "\t" : null);
-      if(!sep) return;
-      var i=line.indexOf(sep);
-      var f=line.slice(0,i).trim(), b=line.slice(i+sep.length).trim();
-      if(f && b) out.push({ front:f, back:b });
-    });
-  }
-  return out.length ? { cards:out, name:name } : null;
+function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function byId(id) { return cards.find(c => c.id === id) || null; }
+
+// A study "day" starts at 4am, so a card due "tomorrow" is ready tomorrow morning.
+function dueAt(days) {
+  const d = new Date();
+  if (d.getHours() < 4) d.setDate(d.getDate() - 1);
+  d.setDate(d.getDate() + days);
+  d.setHours(4, 0, 0, 0);
+  return d.getTime();
 }
-function importCards(list, packName){
-  if(!list || !list.length) return;
-  var pack = (packName && packName.trim()) ? packName.trim() : "Imported";
-  list.forEach(function(c){ cards.push(makeCard({ front:c.front, back:c.back }, Date.now(), pack)); });
-  persist();
-  var n=list.length;
-  pendingImport=null; importText=""; importMsg=""; importName=""; pendingName="";
-  toastMsg="\u2713 Imported "+n+" card"+(n!==1?"s":"")+" into \u201c"+pack+"\u201d";
-  view="browse"; packFilter=pack; idx=0; aidx=0; browseOrder=null; flipped=false;
-  render();
-  setTimeout(function(){ toastMsg=""; render(); }, 2800);
+function dayNum(ts) {
+  const d = new Date(ts);
+  if (d.getHours() < 4) d.setDate(d.getDate() - 1);
+  d.setHours(12, 0, 0, 0);
+  return Math.round(d.getTime() / DAY);
 }
-// Browse order: natural by default, or a shuffled list of ids when "Mix" is on.
-function getOrdered(){
-  if(!browseOrder) return cards;
-  var byId={}; cards.forEach(function(c){ byId[c.id]=c; });
-  var seen={}, list=[];
-  browseOrder.forEach(function(id){ if(byId[id]){ list.push(byId[id]); seen[id]=1; } });
-  cards.forEach(function(c){ if(!seen[c.id]) list.push(c); }); // append any new/unmixed cards
-  return list;
+function whenText(ts) {
+  if (ts <= Date.now()) return "now";
+  const n = dayNum(ts) - dayNum(Date.now());
+  if (n <= 0) return "later today";
+  if (n === 1) return "tomorrow";
+  return "in " + n + " days";
 }
-// Cards needing attention on the front page: brand-new (not yet known) OR back due for review.
-function inPack(c){ return !packFilter || c.pack===packFilter; }
-function activeList(){
-  var now=Date.now();
-  return getOrdered().filter(function(c){ return inPack(c) && !c.almost && (!c.inRotation || c.nextReview<=now); });
+
+function status(c, now) {
+  now = now || Date.now();
+  if (c.almost) return "almost";
+  if (c.inRotation) return c.nextReview <= now ? "due" : "known";
+  return c.seen ? "no" : "new";
 }
-// Cards you "kind of understand" — held in the Almost section.
-function almostList(){
-  return cards.filter(function(c){ return inPack(c) && c.almost; });
+function inPack(c) { return !prefs.pack || c.pack === prefs.pack; }
+function eligible(c, focus, now) {
+  const s = status(c, now);
+  if (focus === "no") return s === "new" || s === "no";
+  if (focus === "almost") return s === "almost";
+  if (focus === "all") return true;
+  return s !== "known";
 }
-// Unique pack names, "My cards" first, then in order of first appearance.
-function packList(){
-  var seen={}, out=[];
-  cards.forEach(function(c){ var p=c.pack||MANUAL_PACK; if(!seen[p]){ seen[p]=1; out.push(p); } });
-  out.sort(function(a,b){ if(a===MANUAL_PACK) return -1; if(b===MANUAL_PACK) return 1; return 0; });
+function packs() {
+  const seen = new Set(), out = [];
+  cards.forEach(c => { if (!seen.has(c.pack)) { seen.add(c.pack); out.push(c.pack); } });
+  out.sort((a, b) => (a === MANUAL_PACK ? -1 : b === MANUAL_PACK ? 1 : 0));
   return out;
 }
-function packCount(p){ var n=0; cards.forEach(function(c){ if((c.pack||MANUAL_PACK)===p) n++; }); return n; }
-function setPack(p){ packFilter=p; idx=0; aidx=0; flipped=false; render(); }
+function packLabel() {
+  if (prefs.pack) return prefs.pack;
+  const p = packs();
+  return p.length === 1 ? p[0] : "All packs";
+}
+function toStudyCount(pack) {
+  const now = Date.now();
+  return cards.filter(c => (!pack || c.pack === pack) && status(c, now) !== "known").length;
+}
+function packTotal(pack) { return cards.filter(c => !pack || c.pack === pack).length; }
 
-// ---------- actions ----------
-function go(v){ view=v; revealed=false; flipped=false; render(); }
-function flip(){ flipped=!flipped; render(); }
-function nav(d){
-  if(view==="almost"){ var na=almostList().length; aidx=Math.max(0,Math.min(na-1, aidx+d)); }
-  else { var n=activeList().length; idx=Math.max(0,Math.min(n-1, idx+d)); }
-  flipped=false; render();
+/* ============================================================
+   Rounds: one pass through the cards that need attention
+   ============================================================ */
+function roundKey() { return prefs.pack + "\u0001" + prefs.focus; }
+function buildIds() {
+  const now = Date.now();
+  const list = cards.filter(c => inPack(c) && eligible(c, prefs.focus, now));
+  let due = list.filter(c => status(c, now) === "due").sort((a, b) => a.nextReview - b.nextReview);
+  let rest = list.filter(c => status(c, now) !== "due");
+  if (prefs.shuffle) { due = shuffle(due); rest = shuffle(rest); }
+  return due.concat(rest).map(c => c.id);
 }
-function jump(i){ idx=i; flipped=false; render(); }
-
-function mixCards(){
-  if(cards.length<2) return;
-  browseOrder = shuffleArr(cards.map(function(c){ return c.id; }));
-  idx=0; flipped=false;
-  toastMsg="\uD83D\uDD00 Cards mixed";
-  render();
-  setTimeout(function(){ toastMsg=""; render(); }, 2000);
+function newRound() {
+  round = { key: roundKey(), ids: buildIds(), pos: 0, res: {}, ts: Date.now() };
+  undoStack = [];
+  flipped = false;
+  saveRound();
 }
-function resetOrder(){ browseOrder=null; idx=0; flipped=false; render(); }
-
-function removeCard(id){
-  cards = cards.filter(function(c){return c.id!==id;});
-  var n=activeList().length;
-  if(idx>=n) idx=Math.max(0,n-1);
-  persist(); render();
-}
-function startEdit(id){ editingId=id; view="edit"; render(); }
-function saveEdit(front, back){
-  if(!front.trim() || !back.trim()) return;
-  cards = cards.map(function(c){ return c.id===editingId ? Object.assign({}, c, { front:front.trim(), back:back.trim() }) : c; });
-  persist();
-  editingId=null; view="list";
-  toastMsg="\u2713 Card updated";
-  render();
-  setTimeout(function(){ toastMsg=""; render(); }, 2000);
-}
-function grade(id, remembered){
-  var t=Date.now();
-  cards = cards.map(function(c){
-    if(c.id!==id) return c;
-    var level = remembered ? c.level+1 : 0;
-    var i = Math.min(level, INTERVALS.length-1);
-    return Object.assign({}, c, { level:level, lastReviewed:t, nextReview:t + INTERVALS[i]*DAY });
+function syncRound() {
+  const now = Date.now();
+  if (!round || round.key !== roundKey() || !Array.isArray(round.ids) || now - (round.ts || 0) > STALE) { newRound(); return; }
+  const map = new Map(cards.map(c => [c.id, c]));
+  let pos = round.pos;
+  const ids = [];
+  round.ids.forEach((id, i) => {
+    const c = map.get(id);
+    const keep = c && (i < round.pos || inPack(c));
+    if (keep) ids.push(id); else if (i < round.pos) pos--;
   });
-  revealed=false; persist(); render();
+  const have = new Set(ids);
+  cards.forEach(c => { if (!have.has(c.id) && inPack(c) && eligible(c, prefs.focus, now)) ids.push(c.id); });
+  round.ids = ids;
+  round.pos = Math.max(0, Math.min(pos, ids.length));
+  if (!round.res) round.res = {};
 }
-// "I know this" from the Browse tab: keep the card, just space it out further.
-// It still returns for review on schedule (and monthly once mastered) instead of being deleted.
-function knowIt(id){
-  var t=Date.now();
-  cards = cards.map(function(c){
-    if(c.id!==id) return c;
-    var level = c.level+1;
-    var i = Math.min(level, INTERVALS.length-1);
-    return Object.assign({}, c, { level:level, lastReviewed:t, nextReview:t + INTERVALS[i]*DAY });
-  });
-  persist();
-  flipped=false;
-  toastMsg="\u2713 Spaced out \u2014 it will still come back for review";
-  render();
-  setTimeout(function(){ toastMsg=""; render(); }, 2600);
-}
-function addCard(word, def){
-  if(!word.trim()||!def.trim()) return;
-  cards.push(makeCard({front:word.trim(), back:def.trim()}, Date.now(), MANUAL_PACK));
-  persist();
-  genState={busy:false,error:"",value:"",word:""};
-  toastMsg="\u2713 Added \u2014 first review scheduled for tomorrow";
-  render();
-  setTimeout(function(){ toastMsg=""; render(); }, 2600);
-}
+function currentCard() { return round && round.pos < round.ids.length ? byId(round.ids[round.pos]) : null; }
 
-function saveSettings(baseUrl, apiKey, model){
-  settings = { baseUrl:baseUrl.trim().replace(/\/+$/,""), apiKey:apiKey.trim(), model:model.trim()||"llama-3.3-70b-versatile" };
-  save(SET_KEY, settings);
-  toastMsg="\u2713 Settings saved on this device";
-  render();
-  setTimeout(function(){ toastMsg=""; render(); }, 2600);
-}
-
-// ---------- swipe-to-grade (Cards & Almost tabs) ----------
-// gesture: "right" = I know it (-> spaced review); "left" = main:still-learning / almost:back-to-main;
-//          "up" = kind of understand (-> Almost section, or stays if already there).
-function handleSwipe(id, mode, gesture){
-  var t=Date.now();
-  cards = cards.map(function(c){
-    if(c.id!==id) return c;
-    if(gesture==="right"){
-      var lvl = c.inRotation ? Math.min(c.level+1, INTERVALS.length-1) : 0;
-      return Object.assign({}, c, { almost:false, inRotation:true, level:lvl, lastReviewed:t, nextReview:t+INTERVALS[lvl]*DAY });
-    }
-    if(gesture==="up") return Object.assign({}, c, { almost:true, inRotation:false });
-    return Object.assign({}, c, { almost:false, inRotation:false, level:0 }); // left
-  });
-  persist();
-  if(mode==="almost"){
-    var na=almostList().length;
-    if(na===0) aidx=0;
-    else if(gesture==="up") aidx=(aidx+1)%na;   // stays here; move to next
-    else if(aidx>=na) aidx=na-1;                 // left/right: card left this section
+function grade(g) {
+  const c = currentCard();
+  if (!c) return;
+  undoStack.push({ id: c.id, before: JSON.parse(JSON.stringify(c)), pos: round.pos, res: round.res[c.id], g });
+  if (undoStack.length > 100) undoStack.shift();
+  const now = Date.now(), s = status(c, now);
+  if (g === "know") {
+    if (!c.inRotation) {                         // first time you know it: back tomorrow
+      c.inRotation = true; c.almost = false; c.level = 0;
+      c.nextReview = dueAt(INTERVALS[0]); c.lastReviewed = now;
+    } else if (s === "due") {                    // passed a review: step up the ladder
+      c.level = Math.min(c.level + 1, INTERVALS.length - 1);
+      c.nextReview = dueAt(INTERVALS[c.level]); c.lastReviewed = now;
+    }                                            // known and not due yet (All cards mode): schedule unchanged
+  } else if (g === "almost") {
+    c.almost = true; c.inRotation = false; c.level = 0;
   } else {
-    var n=activeList().length;
-    if(n===0) idx=0;
-    else if(gesture==="left") idx=(idx+1)%n;     // stays on main; move to next
-    else if(idx>=n) idx=n-1;                      // up/right: card left main
+    c.almost = false; c.inRotation = false; c.level = 0;
   }
-  flipped=false;
-  toastMsg = gesture==="right" ? "\u2713 Got it \u2014 sent to review"
-           : gesture==="up" ? "\u2248 Moved to Almost"
-           : (mode==="almost" ? "\u2190 Back to main pack" : "\u21BA Keeping it here to study");
+  c.seen = true;
+  round.res[c.id] = g;
+  round.pos++;
+  round.ts = now;
+  flipped = false;
+  persist(); saveRound();
+}
+function undo() {
+  if (animating || !round) return;
+  const u = undoStack.pop();
+  if (!u) return;
+  const i = cards.findIndex(c => c.id === u.id);
+  if (i >= 0) cards[i] = u.before; else cards.push(u.before);
+  round.pos = u.pos;
+  if (u.res) round.res[u.id] = u.res; else delete round.res[u.id];
+  const at = round.ids.indexOf(u.id);
+  if (at !== round.pos) { if (at >= 0) round.ids.splice(at, 1); round.ids.splice(round.pos, 0, u.id); }
+  round.ts = Date.now();
+  persist(); saveRound();
+  flipped = false; enterFrom = u.g;
+  if (view !== "study") view = "study";
   render();
-  setTimeout(function(){ toastMsg=""; render(); }, 1500);
 }
-function setSwipeHints(x, y, axis){
-  var go=document.getElementById("hintGot"), fo=document.getElementById("hintForgot"), up=document.getElementById("hintUp");
-  if(go) go.style.opacity = (axis==="h" && x>0) ? Math.min(1, x/110) : 0;
-  if(fo) fo.style.opacity = (axis==="h" && x<0) ? Math.min(1, -x/110) : 0;
-  if(up) up.style.opacity = (axis==="v" && y<0) ? Math.min(1, -y/90) : 0;
+
+/* ============================================================
+   Render
+   ============================================================ */
+function render() {
+  if (view === "study") main.innerHTML = studyHTML();
+  else if (view === "add") main.innerHTML = addHTML();
+  else if (view === "cards") main.innerHTML = cardsHTML();
+  else if (view === "settings") main.innerHTML = settingsHTML();
+  renderTabs();
+  if (view === "study") fitAll();
+  if (view === "cards") $("#rows").innerHTML = rowsHTML();
+  if (view === "add" && addMode === "paste") updateImportInfo();
 }
-function swipeStart(e){
-  var card=e.currentTarget;
-  swipe.el=card; swipe.id=card.getAttribute("data-id"); swipe.mode=card.getAttribute("data-swipe");
-  swipe.dragging=true; swipe.decided=false; swipe.moved=false; swipe.axis=null;
-  var p=e.touches?e.touches[0]:e;
-  swipe.startX=p.clientX; swipe.startY=p.clientY; swipe.x=0; swipe.y=0;
-  card.style.transition="none";
+function renderTabs() {
+  const n = toStudyCount(prefs.pack);
+  const cur = view === "settings" ? "cards" : view;
+  tabsEl.innerHTML = [["study", "Study", n], ["add", "Add", 0], ["cards", "Cards", 0]].map(t =>
+    `<button class="tab${cur === t[0] ? " on" : ""}" data-act="go" data-v="${t[0]}"${cur === t[0] ? ' aria-current="page"' : ""}>${t[1]}${t[2] ? `<span class="n">${t[2]}</span>` : ""}</button>`
+  ).join("");
 }
-function swipeMove(e){
-  if(!swipe.dragging||!swipe.el) return;
-  var p=e.touches?e.touches[0]:e;
-  var dx=p.clientX-swipe.startX, dy=p.clientY-swipe.startY;
-  if(!swipe.decided){
-    if(Math.abs(dx)<6 && Math.abs(dy)<6) return;
-    if(Math.abs(dx)>=Math.abs(dy)){ swipe.axis="h"; swipe.decided=true; }
-    else if(dy<0){ swipe.axis="v"; swipe.decided=true; }   // upward
-    else { swipe.dragging=false; swipe.el.style.transition=""; swipe.el.style.transform=""; return; } // down -> let it scroll
-  }
-  swipe.moved=true;
-  if(swipe.axis==="h"){ swipe.x=dx; swipe.el.style.transform="translateX("+dx+"px) rotate("+(dx*0.05)+"deg)"; }
-  else { swipe.y=dy; swipe.el.style.transform="translateY("+dy+"px) scale("+Math.max(0.9, 1+dy*0.0006)+")"; }
-  setSwipeHints(swipe.x, swipe.y, swipe.axis);
-  if(e.cancelable) e.preventDefault();
+function go(v) {
+  if (view === v && v !== "study") return;
+  view = v; flipped = false; main.scrollTop = 0; render();
 }
-function swipeEnd(){
-  if(!swipe.dragging) return;
-  swipe.dragging=false;
-  if(!swipe.el) return;
-  var el=swipe.el, id=swipe.id, mode=swipe.mode, W=window.innerWidth||400, H=window.innerHeight||700;
-  var gesture=null;
-  if(swipe.axis==="h" && Math.abs(swipe.x)>90) gesture = swipe.x>0 ? "right" : "left";
-  else if(swipe.axis==="v" && swipe.y < -80) gesture = "up";
-  if(gesture){
-    el.style.transition="transform 0.34s ease, opacity 0.34s ease";
-    if(gesture==="up") el.style.transform="translateY("+(-H*1.1)+"px) scale(0.85)";
-    else { var dir=gesture==="right"?1:-1; el.style.transform="translateX("+(dir*W*1.2)+"px) rotate("+(dir*16)+"deg)"; }
-    el.style.opacity="0";
-    swipe.el=null;
-    setTimeout(function(){ handleSwipe(id, mode, gesture); }, 320);
+
+function barHTML(isStudy) {
+  const focus = FOCI.find(f => f[0] === prefs.focus);
+  let right = "";
+  if (isStudy) {
+    if (undoStack.length) right += `<button class="undo" data-act="undo" aria-label="Undo last card">${ICON.undo}Undo</button>`;
+    if (round && round.pos < round.ids.length) right += `<span class="count">${round.pos + 1} of ${round.ids.length}</span>`;
   } else {
-    el.style.transition="transform 0.2s ease";
-    el.style.transform="";
-    setSwipeHints(0,0,null);
-    if(!swipe.moved) flip(); // a tap (no drag) flips the card
+    right = `<span class="count">${plural(packTotal(prefs.pack), "card")}</span>`;
   }
-}
-function generate(word){
-  word = (word||"").trim();
-  if(!word) return;
-  if(!settings.apiKey){ genState.error="Add your free API key in Settings first (tap the gear)."; render(); return; }
-  genState.busy=true; genState.error=""; genState.word=word; render();
-
-  var prompt = 'Explain the term "'+word+'" for a flashcard, in plain, simple language a beginner could understand. '+
-    'Use everyday words and short sentences. Avoid jargon, and if you must use a technical word, explain it in the same breath. '+
-    'Where it helps, add a quick intuition, analogy, or concrete example so the idea actually clicks. '+
-    'Keep it to 1-3 sentences. Respond with ONLY the explanation text \u2014 do not repeat the term, no preamble, no quotation marks.';
-
-  fetch(settings.baseUrl + "/chat/completions", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+settings.apiKey },
-    body: JSON.stringify({ model:settings.model, max_tokens:300, temperature:0.4,
-      messages:[{role:"user", content:prompt}] })
-  })
-  .then(function(res){ return res.text().then(function(txt){ return {ok:res.ok, status:res.status, txt:txt}; }); })
-  .then(function(r){
-    var data=null; try{ data=JSON.parse(r.txt); }catch(e){}
-    if(!r.ok){
-      var m = (data && data.error && data.error.message) ? data.error.message : ("HTTP "+r.status);
-      genState.busy=false; genState.error="API error: "+m; render(); return;
-    }
-    var text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    text = (text||"").trim();
-    genState.busy=false;
-    if(text){ genState.value=text; genState.error=""; }
-    else { genState.error="No text came back. Try a different model name in Settings, or type a definition."; }
-    render();
-  })
-  .catch(function(err){
-    genState.busy=false;
-    genState.error="Couldn't reach the API ("+(err&&err.message||"network/CORS error")+"). Check the key, model, and connection.";
-    render();
-  });
+  return `<div class="bar"><button class="pack-btn" data-act="packs" aria-haspopup="dialog"><span class="nm">${esc(packLabel())}</span>${isStudy && prefs.focus !== "queue" ? `<span class="fo">${focus[1]}</span>` : ""}${ICON.chev}</button><span class="sp"></span>${right}</div>`;
 }
 
-// ---------- render ----------
-function render(){
-  var act = activeList().length;
-  var html = "";
-
-  html += '<div class="header">'+
-    '<button class="gear-btn" data-gear="1" title="Settings">\u2699</button>'+
-    '<div class="header-eyebrow">Medical Vocabulary</div>'+
-    '<div class="header-title">Flash<span>cards</span></div>'+
-    '<div class="header-sub">'+cards.length+' card'+(cards.length!==1?'s':'')+' \u00b7 '+act+' to study</div>'+
-  '</div>';
-
-  if(!storageOK){
-    html += '<div class="banner">Heads up: this looks like a preview that blocks saving. <b>Download this file and open it on your phone</b> so your cards and key are saved on your device.</div>';
+/* ---------- Study ---------- */
+function studyHTML() {
+  syncRound();
+  let h = '<section class="study">' + barHTML(true);
+  if (!cards.length) return h + emptyDeckHTML() + "</section>";
+  const c = currentCard();
+  if (round.ids.length) h += trackHTML();
+  if (!round.ids.length) h += caughtUpHTML();
+  else if (!c) h += finishedHTML();
+  else h += stageHTML(c) + gradesHTML();
+  return h + "</section>";
+}
+function trackHTML() {
+  const ids = round.ids, n = ids.length, cls = { know: "know", almost: "almost", no: "no" };
+  if (n > 60) {
+    let k = 0, a = 0, no = 0;
+    ids.slice(0, round.pos).forEach(id => { const r = round.res[id]; if (r === "know") k++; else if (r === "almost") a++; else if (r === "no") no++; });
+    const rest = n - k - a - no;
+    return `<div class="track solid" aria-hidden="true"><i class="know" style="flex:${k}"></i><i class="almost" style="flex:${a}"></i><i class="no" style="flex:${no}"></i><i style="flex:${rest}"></i></div>`;
   }
-
-  if(view==="browse") html += renderBrowse();
-  else if(view==="almost") html += renderAlmost();
-  else if(view==="add") html += renderAdd();
-  else if(view==="import") html += renderImport();
-  else if(view==="schedule") html += renderSchedule();
-  else if(view==="list") html += renderList();
-  else if(view==="edit") html += renderEdit();
-  else if(view==="settings") html += renderSettings();
-
-  if(toastMsg) html += '<div class="toast show">'+esc(toastMsg)+'</div>';
-
-  // tab bar
-  var almostN = almostList().length;
-  var tabs = [["browse","Cards","\u25A1"],["almost","Almost","\u2248"],["add","Add","\uFF0B"],["import","Import","\u21E9"],["schedule","Due","\u23F1"]];
-  html += '<div class="tabbar">';
-  tabs.forEach(function(t){
-    var active = (view===t[0] || (view==="list"&&t[0]==="browse")) ? " active":"";
-    var badge = "";
-    if(t[0]==="browse" && act>0) badge='<span class="tab-badge">'+act+'</span>';
-    else if(t[0]==="almost" && almostN>0) badge='<span class="tab-badge alt">'+almostN+'</span>';
-    html += '<button class="tab'+active+'" data-go="'+t[0]+'"><span class="ico">'+t[2]+'</span>'+t[1]+badge+'</button>';
+  return '<div class="track" aria-hidden="true">' + ids.map((id, i) =>
+    `<i class="${i < round.pos ? (cls[round.res[id]] || "") : i === round.pos ? "cur" : ""}"></i>`).join("") + "</div>";
+}
+function frontInner(c) {
+  const s = status(c);
+  const showPack = !prefs.pack && packs().length > 1;
+  return `<div class="meta"><span>${STATUS[s].label}</span><span>${showPack ? esc(c.pack) : ""}</span></div>` +
+         `<div class="term"><span>${esc(c.front)}</span></div>` +
+         (prefs.flipped ? "" : '<div class="hint">Tap to flip</div>');
+}
+function stageHTML(c) {
+  const nx = round.pos + 1 < round.ids.length ? byId(round.ids[round.pos + 1]) : null;
+  let h = '<div class="stage">';
+  if (nx) h += `<div class="card next" aria-hidden="true"><div class="face front">${frontInner(nx)}</div></div>`;
+  h += `<div class="card cur${flipped ? " flipped" : ""}${enterFrom ? " in-" + enterFrom : ""}" data-id="${c.id}" role="button" tabindex="0" aria-label="${esc(c.front)}. Press space to flip.">` +
+       `<div class="flip"><div class="face front">${frontInner(c)}</div>` +
+       `<div class="face back"><div class="bhead">${esc(c.front)}</div><div class="def">${esc(c.back)}</div></div></div></div>`;
+  enterFrom = null;
+  return h + "</div>";
+}
+function gradesHTML() {
+  return '<div class="grades">' +
+    `<button class="g no" data-act="grade" data-g="no">${ICON.left}Not yet</button>` +
+    `<button class="g almost" data-act="grade" data-g="almost">${ICON.up}Almost</button>` +
+    `<button class="g know" data-act="grade" data-g="know">Know${ICON.right}</button>` +
+    '</div><div class="keys">Space flips the card. Arrow keys sort it. Z undoes.</div>';
+}
+function doneHTML(o) {
+  return `<div class="done"><h2>${o.title}</h2>${o.text ? `<p>${o.text}</p>` : ""}${o.mix || ""}<div class="actions">${o.actions || ""}</div>${o.note ? `<div class="note">${o.note}</div>` : ""}</div>`;
+}
+function nextDueNote() {
+  const known = cards.filter(c => inPack(c) && status(c) === "known");
+  if (!known.length) return "";
+  const first = known.reduce((m, c) => Math.min(m, c.nextReview), Infinity);
+  const d = dayNum(first);
+  const n = known.filter(c => dayNum(c.nextReview) === d).length;
+  return `Next review ${whenText(first)}: ${plural(n, "card")}.`;
+}
+function emptyDeckHTML() {
+  return doneHTML({
+    title: "No cards yet",
+    text: "Add a term, or paste a pack you made with Claude.",
+    actions: '<button class="btn" data-act="add-one">Add a card</button><button class="btn alt" data-act="add-paste">Paste a pack</button>'
   });
-  html += '</div>';
-
-  document.getElementById("app").innerHTML = html;
-  persistSession();
-  wire();
 }
-
-function packChips(){
-  var packs = packList();
-  if(packs.length<2 && !packFilter) return "";
-  var h='<div class="pack-row">';
-  h += '<button class="pack-chip'+(packFilter===""?" active":"")+'" data-pack="">All</button>';
-  packs.forEach(function(p){
-    h += '<button class="pack-chip'+(packFilter===p?" active":"")+'" data-pack="'+esc(p)+'">'+esc(p)+' <span class="pc-n">'+packCount(p)+'</span></button>';
+function caughtUpHTML() {
+  const where = prefs.pack ? `“${esc(prefs.pack)}”` : "your deck";
+  const back = '<button class="btn alt" data-act="focus" data-f="queue">Back to To study</button>';
+  if (prefs.focus === "no") return doneHTML({ title: "No Not yet cards", text: `Everything in ${where} is sorted into Almost or Know.`, actions: back });
+  if (prefs.focus === "almost") return doneHTML({ title: "No Almost cards", text: "Swipe a card up when you almost know it, and it lands here.", actions: back });
+  if (prefs.focus === "all") return doneHTML({ title: "This pack is empty", actions: '<button class="btn" data-act="add-one">Add a card</button>' });
+  return doneHTML({
+    title: "All caught up",
+    text: `Nothing to study in ${where} right now.`,
+    actions: '<button class="btn alt" data-act="focus" data-f="all">Go through all cards anyway</button>',
+    note: nextDueNote()
   });
-  return h+'</div>';
+}
+function finishedHTML() {
+  let k = 0, a = 0, no = 0;
+  round.ids.forEach(id => { const r = round.res[id]; if (r === "know") k++; else if (r === "almost") a++; else if (r === "no") no++; });
+  const parts = [];
+  if (k) parts.push(k + " Know"); if (a) parts.push(a + " Almost"); if (no) parts.push(no + " Not yet");
+  const total = k + a + no;
+  const mix = total ? `<div class="mix" aria-hidden="true">${k ? `<i class="know" style="flex:${k}"></i>` : ""}${a ? `<i class="almost" style="flex:${a}"></i>` : ""}${no ? `<i class="no" style="flex:${no}"></i>` : ""}</div>` : "";
+  const nextN = buildIds().length;
+  const almostN = cards.filter(c => inPack(c) && c.almost).length;
+  let actions = "";
+  if (nextN) actions += `<button class="btn" data-act="again">${prefs.focus === "all" ? `Go through all ${nextN} again` : `Study the ${nextN} again`}</button>`;
+  if (prefs.focus === "queue" && almostN && almostN < nextN) actions += `<button class="btn alt" data-act="focus" data-f="almost">Only Almost cards (${almostN})</button>`;
+  if (!nextN && prefs.focus !== "queue") actions += '<button class="btn alt" data-act="focus" data-f="queue">Back to To study</button>';
+  if (!nextN && prefs.focus === "queue") actions += '<button class="btn alt" data-act="focus" data-f="all">Go through all cards anyway</button>';
+  return doneHTML({
+    title: nextN || prefs.focus !== "queue" ? "Round done" : "All caught up",
+    text: total ? `You sorted ${plural(total, "card")}: ${parts.join(", ")}.` : "",
+    mix, actions,
+    note: prefs.focus === "queue" ? nextDueNote() : ""
+  });
 }
 
-function renderBrowse(){
-  if(cards.length===0) return '<div class="empty-state">Your deck is empty.<br/>Tap <b>Add</b> or <b>Import</b> to create cards.</div>';
-  var chips = packChips();
-  var list = activeList();
-  if(list.length===0) return chips + '<div class="all-done"><div class="all-done-icon">\u2713</div><div class="all-done-title">Nothing to study now</div><div class="all-done-sub">'+(packFilter?'No cards due in \u201c'+esc(packFilter)+'\u201d right now.':'Cards you swiped \u201cI know\u201d will come back here when their review time arrives.')+'<br/>Switch packs above, or tap <b>Add</b> / <b>Import</b>.</div></div>';
-  if(idx>=list.length) idx=list.length-1;
-  if(idx<0) idx=0;
-  var c = list[idx];
-  var h = chips + '<div class="deck-info"><b>'+list.length+'</b> to study'+(browseOrder?' \u00b7 mixed':'')+' \u00b7 tap to flip</div>';
-  h += '<div class="card-wrapper" data-swipe="browse" data-id="'+c.id+'">'+
-    '<div class="swipe-hint got" id="hintGot">\u2713 I KNOW IT</div>'+
-    '<div class="swipe-hint forgot" id="hintForgot">\u21BA NOT YET</div>'+
-    '<div class="swipe-hint up" id="hintUp">\u2248 KIND OF</div>'+
-    '<div class="card-inner'+(flipped?' flipped':'')+'">'+
-    '<div class="card-face card-front"><div class="card-label">Term</div><div class="card-word">'+esc(c.front)+'</div><div class="card-hint">tap to flip \u00b7 swipe to sort</div></div>'+
-    '<div class="card-face card-back"><div class="card-label">Definition</div><div class="card-definition">'+esc(c.back)+'</div></div>'+
-  '</div></div>';
-  h += '<div class="card-controls">'+
-    '<button class="ctrl-btn" data-nav="-1"'+(idx===0?' disabled':'')+'>\u2039</button>'+
-    '<span class="card-counter">'+(idx+1)+' / '+list.length+'</span>'+
-    '<button class="ctrl-btn" data-nav="1"'+(idx>=list.length-1?' disabled':'')+'>\u203A</button>'+
-  '</div>';
-  h += '<div class="swipe-tip">\u2190 still learning \u00b7 \u2191 kind of understand \u00b7 I know it \u2192</div>';
-  h += '<div class="mix-row">'+
-       '<button class="mix-btn" data-mix="1">\uD83D\uDD00 Mix cards</button>'+
-       (browseOrder?'<button class="mix-btn alt" data-reset="1">Reset order</button>':'')+
-       '</div>';
-  h += '<div style="text-align:center;margin-top:16px"><span class="link" data-go="list">view all cards \u2192</span></div>';
-  return h;
+/* ---------- Text fitting so long terms and definitions stay on the card ---------- */
+const TIERS = [[21, 33], [19, 31], [18, 29], [17, 27], [15.5, 25], [14.5, 23], [13.5, 21]];
+function fitTerm(el) {
+  if (!el) return;
+  const L = el.textContent.length;
+  let size = L <= 12 ? 46 : L <= 20 ? 40 : L <= 32 ? 34 : L <= 50 ? 28 : L <= 80 ? 24 : 21;
+  el.style.fontSize = size + "px";
+  el.style.overflowWrap = "normal";
+  while (size > 20 && el.scrollWidth > el.clientWidth + 1) { size -= 2; el.style.fontSize = size + "px"; }
+  el.style.overflowWrap = "";
+  while (size > 15 && el.scrollHeight > el.clientHeight + 1) { size -= 2; el.style.fontSize = size + "px"; }
+}
+function fitDef(el) {                       // largest size that fits, stepping down
+  if (!el) return;
+  let i = 0;
+  const apply = () => { el.style.setProperty("--fs", TIERS[i][0] + "px"); el.style.setProperty("--lh", TIERS[i][1] + "px"); };
+  apply();
+  while (i < TIERS.length - 1 && el.scrollHeight > el.clientHeight + 1) { i++; apply(); }
+}
+function fitAll() {
+  main.querySelectorAll(".card .term").forEach(fitTerm);
+  main.querySelectorAll(".card .def").forEach(fitDef);
 }
 
-function renderAlmost(){
-  if(cards.length===0) return '<div class="empty-state">Your deck is empty.<br/>Tap <b>Add</b> or <b>Import</b> to create cards.</div>';
-  var chips = packChips();
-  var list = almostList();
-  if(list.length===0) return chips + '<div class="all-done"><div class="all-done-icon">\u2248</div><div class="all-done-title">Almost is empty</div><div class="all-done-sub">On the <b>Cards</b> page, swipe a card <b>up</b> when you<br/>kind of understand it and it will land here'+(packFilter?' (within \u201c'+esc(packFilter)+'\u201d)':'')+'.</div></div>';
-  if(aidx>=list.length) aidx=list.length-1;
-  if(aidx<0) aidx=0;
-  var c = list[aidx];
-  var h = chips + '<div class="deck-info"><b>'+list.length+'</b> almost understood \u00b7 tap to flip</div>';
-  h += '<div class="card-wrapper" data-swipe="almost" data-id="'+c.id+'">'+
-    '<div class="swipe-hint got" id="hintGot">\u2713 I KNOW IT</div>'+
-    '<div class="swipe-hint forgot" id="hintForgot">\u2190 BACK TO MAIN</div>'+
-    '<div class="swipe-hint up" id="hintUp">\u2248 STILL ALMOST</div>'+
-    '<div class="card-inner'+(flipped?' flipped':'')+'">'+
-    '<div class="card-face card-front"><div class="card-label">Almost \u00b7 Term</div><div class="card-word">'+esc(c.front)+'</div><div class="card-hint">tap to flip \u00b7 swipe to sort</div></div>'+
-    '<div class="card-face card-back"><div class="card-label">Definition</div><div class="card-definition">'+esc(c.back)+'</div></div>'+
-  '</div></div>';
-  h += '<div class="card-controls">'+
-    '<button class="ctrl-btn" data-nav="-1"'+(aidx===0?' disabled':'')+'>\u2039</button>'+
-    '<span class="card-counter">'+(aidx+1)+' / '+list.length+'</span>'+
-    '<button class="ctrl-btn" data-nav="1"'+(aidx>=list.length-1?' disabled':'')+'>\u203A</button>'+
-  '</div>';
-  h += '<div class="swipe-tip">\u2190 back to main pack \u00b7 \u2191 still almost \u00b7 I know it \u2192</div>';
-  return h;
-}
-
-function renderAdd(){
-  var h='<div class="panel">';
-  h += '<div class="panel-title">Add a new card</div>';
-  if(!settings.apiKey){
-    h += '<div class="banner">Auto-definitions need a free API key. Tap <span class="link" data-go="settings">Setup \u2699</span> to add one (takes ~1 min). You can always type definitions yourself instead.</div>';
+/* ---------- Add ---------- */
+function packDatalist() { return '<datalist id="packlist">' + packs().map(p => `<option value="${esc(p)}">`).join("") + "</datalist>"; }
+function defaultAddPack() { return draft.pack || prefs.pack || prefs.addPack || MANUAL_PACK; }
+function addHTML() {
+  let h = '<div class="page"><div class="top"><div class="seg" role="tablist">' +
+    `<button role="tab" data-act="addmode" data-m="one" class="${addMode === "one" ? "on" : ""}" aria-selected="${addMode === "one"}">One card</button>` +
+    `<button role="tab" data-act="addmode" data-m="paste" class="${addMode === "paste" ? "on" : ""}" aria-selected="${addMode === "paste"}">Paste a pack</button>` +
+    "</div></div>";
+  if (addMode === "one") {
+    const key = !!settings.apiKey;
+    h += `<div class="field"><label class="lbl" for="term">Term</label><div class="row2"><input class="in" id="term" autocomplete="off" autocapitalize="sentences" enterkeyhint="${key ? "go" : "next"}" placeholder="e.g. Hematoma" value="${esc(draft.term)}">` +
+         (key ? `<button class="gen" id="gen" data-act="generate"${busy ? " disabled" : ""}>${busy ? '<span class="spin" aria-label="Generating"></span>' : "Generate"}</button>` : "") + "</div></div>";
+    h += `<div class="field"><label class="lbl" for="def">Definition</label><textarea class="ta serif" id="def" placeholder="${key ? "Tap Generate, or write it yourself" : "Write the meaning in your own words"}">${esc(draft.def)}</textarea></div>`;
+    h += `<div class="err" id="genErr"${draft.err ? "" : " hidden"}>${esc(draft.err)}</div>`;
+    h += `<div class="field"><label class="lbl" for="addPack">Pack</label><input class="in" id="addPack" list="packlist" autocomplete="off" value="${esc(defaultAddPack())}">${packDatalist()}</div>`;
+    h += '<button class="btn" data-act="add">Add card</button>';
+    if (!key) h += '<p class="help">Want definitions written for you? <button class="txt" data-act="go" data-v="settings">Add a free API key</button></p>';
   } else {
-    h += '<div class="panel-desc">Type a word and tap Generate \u2014 review/edit the definition, then add it. It returns for review on a spaced schedule.</div>';
+    h += `<div class="field"><label class="lbl" for="impName">Pack name</label><input class="in" id="impName" autocomplete="off" placeholder="e.g. FeUdal Networks" value="${esc(imp.name)}"></div>`;
+    h += `<div class="field"><label class="lbl" for="impText"><span>Cards</span><span id="impInfo"></span></label><textarea class="ta" id="impText" spellcheck="false" autocapitalize="off" style="min-height:190px" placeholder="Hematoma :: A pool of clotted blood outside a blood vessel&#10;Biopsy :: A small tissue sample taken to diagnose disease">${esc(imp.text)}</textarea></div>`;
+    h += '<button class="btn" id="impBtn" data-act="import" disabled>Import</button>';
+    h += '<p class="help">Paste JSON, or one card per line as <i>term :: definition</i>. To get a pack from Claude, ask: “Make an importable flashcard pack for [article] as JSON with a name and a cards list of front and back. Assume I don’t know [terms].”</p>';
   }
-  h += '<label class="field-label">Word or Term</label>';
-  h += '<div class="row"><input class="field-input" id="word" placeholder="e.g. Hematoma" value="'+esc(genState.word)+'" />'+
-       '<button class="gen-btn" id="genBtn">'+(genState.busy?'<span class="spinner"></span>':'\u2726 Generate')+'</button></div>';
-  h += '<div class="def-meta"><label class="field-label" style="margin:0">Definition</label>'+
-       (genState.value && !genState.busy ? '<button class="regen-link" id="regen">regenerate</button>':'')+'</div>';
-  h += '<textarea class="field-textarea" id="def" placeholder="Tap Generate, or type the meaning yourself\u2026">'+esc(genState.value)+'</textarea>';
-  if(genState.error) h += '<div class="err">'+esc(genState.error)+'</div>';
-  h += '<button class="primary-btn" id="addBtn">Add to Deck</button>';
-  return h+'</div>';
+  return h + "</div>";
 }
 
-function renderImport(){
-  var h='<div class="panel"><div class="panel-title">Import a pack</div>';
-  h += '<div class="panel-desc">Give the pack a name, then paste a pack from Claude (or open the link Claude gives you). You can later flick through just this pack from the Cards page.</div>';
-  if(pendingImport && pendingImport.length){
-    h += '<div class="banner" style="color:#4db8b0;background:#0e2520;border-color:#1a4035">Found <b>'+pendingImport.length+'</b> card'+(pendingImport.length!==1?'s':'')+' in this link'+(pendingName?' (\u201c'+esc(pendingName)+'\u201d)':'')+'.<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
-         '<button class="mix-btn" data-importlink="1">Add to deck</button>'+
-         '<button class="mix-btn alt" data-discardlink="1">Discard</button></div></div>';
-  }
-  h += '<label class="field-label">Pack name</label>';
-  h += '<input class="field-input mb" id="packName" placeholder="e.g. FeUdal Networks" value="'+esc(importName || pendingName)+'" />';
-  h += '<label class="field-label">Paste pack (JSON, or "Term :: Definition" lines)</label>';
-  h += '<textarea class="field-textarea" id="importText" placeholder=\'{"name":"My Pack","cards":[{"front":"Tensor","back":"..."}]}\' style="height:150px">'+esc(importText)+'</textarea>';
-  if(importMsg) h += '<div class="err">'+esc(importMsg)+'</div>';
-  h += '<button class="primary-btn" id="importBtn">Add cards</button>';
-  h += '<div class="settings-note">Tip \u2014 ask Claude: \u201cMake me an importable flashcard pack for [article]. Assume I don\u2019t know [terms]. Output a JSON object with a name and a cards array of front/back.\u201d The name auto-fills here.</div>';
-  h += '<div style="border-top:1px solid #242d42;margin-top:22px;padding-top:20px">';
-  h += '<label class="field-label">Share my deck</label>';
-  h += '<button class="mix-btn" data-makelink="1">Create a link of my '+cards.length+' cards</button>';
-  if(shareLink) h += '<textarea class="field-textarea" readonly id="shareBox" style="height:96px;margin-top:12px;font-size:12px">'+esc(shareLink)+'</textarea><div class="settings-note">Open this on another device to copy your deck there, or paste it into any QR-code generator.</div>';
-  h += '</div>';
-  return h+'</div>';
+/* ---------- Cards (library) ---------- */
+function libCounts() {
+  const now = Date.now(), n = { all: 0, learning: 0, almost: 0, known: 0 };
+  cards.filter(inPack).forEach(c => {
+    const s = status(c, now); n.all++;
+    if (s === "new" || s === "no") n.learning++; else if (s === "almost") n.almost++; else n.known++;
+  });
+  return n;
+}
+function filtersHTML() {
+  const n = libCounts();
+  return [["all", "All"], ["learning", "Learning"], ["almost", "Almost"], ["known", "Known"]].map(f =>
+    `<button class="${libFilter === f[0] ? "on" : ""}" data-act="filter" data-f="${f[0]}">${f[1]}${n[f[0]] ? `<b>${n[f[0]]}</b>` : ""}</button>`).join("");
+}
+function statusText(c, s) {
+  if (s === "known") return "Back " + whenText(c.nextReview);
+  if (s === "due") return "Review now";
+  return STATUS[s].label;
+}
+function rowsHTML() {
+  const now = Date.now(), q = libQuery.trim().toLowerCase();
+  const list = cards.filter(c => {
+    if (!inPack(c)) return false;
+    const s = status(c, now);
+    if (libFilter === "learning" && !(s === "new" || s === "no")) return false;
+    if (libFilter === "almost" && s !== "almost") return false;
+    if (libFilter === "known" && !(s === "known" || s === "due")) return false;
+    return !q || (c.front + " " + c.back).toLowerCase().includes(q);
+  }).reverse();
+  if (!list.length) return `<p class="empty">${q ? `No cards match “${esc(libQuery.trim())}”.` : "No cards here."}</p>`;
+  return list.map(c => {
+    const s = status(c, now);
+    return `<button class="item" data-act="edit" data-id="${c.id}"><span class="m"><span class="t">${esc(c.front)}</span><span class="d">${esc(c.back)}</span></span><span class="st" style="--c:${STATUS[s].color}"><i></i>${statusText(c, s)}</span></button>`;
+  }).join("");
+}
+function cardsHTML() {
+  const any = cards.some(inPack);
+  let h = '<div class="page">' + barHTML(false);
+  h += `<input class="in search" id="q" type="search" placeholder="Search terms and definitions" autocomplete="off" value="${esc(libQuery)}" aria-label="Search cards">`;
+  h += `<div class="filters" id="filters">${filtersHTML()}</div><div id="rows"></div>`;
+  h += '<div class="foot">' +
+    (any ? `<button class="txt" data-act="share">Share ${prefs.pack ? "this pack" : "all cards"}</button>` : "") +
+    (prefs.pack ? '<button class="txt" data-act="rename">Rename pack</button><button class="txt" data-act="delpack">Delete pack</button>' : "") +
+    '<button class="txt" data-act="go" data-v="settings">Settings</button></div>';
+  return h + "</div>";
 }
 
-function renderSchedule(){
-  var h='<div class="panel"><div class="panel-title">Review schedule</div>'+
-    '<div class="panel-desc">Cards you swiped \u201cI know\u201d are scheduled to return to the Cards page. The rest are still on the front page now.</div>';
-  if(cards.length===0) h += '<div class="empty-state">No cards yet.</div>';
-  else {
-    cards.slice().sort(function(a,b){
-      var aw=a.inRotation?1:0, bw=b.inRotation?1:0;
-      if(aw!==bw) return aw-bw;
-      return a.nextReview-b.nextReview;
-    }).forEach(function(c){
-      var stage = c.inRotation ? stageLabel(c.level) : "On the Cards page";
-      var d = c.inRotation ? dueLabel(c.nextReview) : { t:"Studying", c:"due-now" };
-      h += '<div class="sched-item"><div><div class="sched-word">'+esc(c.front)+'</div><div class="sched-stage">'+stage+'</div></div>'+
-           '<div class="sched-due '+d.c+'">'+d.t+'</div></div>';
+/* ---------- Settings ---------- */
+function settingsHTML() {
+  return '<div class="page"><div class="top"><button class="txt" data-act="go" data-v="cards">Back to cards</button></div>' +
+    '<h1 class="title">Settings</h1>' +
+    '<h2 class="h2" style="margin-top:0">AI definitions</h2>' +
+    '<p class="help top0" style="margin-bottom:16px">Generate writes a plain-language definition for a term you type. Groq gives you a free key: create one at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and paste it here. It stays on this device.</p>' +
+    `<div class="field"><label class="lbl" for="sKey">API key</label><input class="in" id="sKey" type="password" autocomplete="off" placeholder="gsk_…" value="${esc(settings.apiKey)}"></div>` +
+    `<div class="field"><label class="lbl" for="sModel">Model</label><input class="in" id="sModel" autocomplete="off" value="${esc(settings.model)}"></div>` +
+    `<div class="field"><label class="lbl" for="sUrl">Provider URL</label><input class="in" id="sUrl" autocomplete="off" inputmode="url" value="${esc(settings.baseUrl)}"></div>` +
+    '<button class="btn" data-act="savekey">Save</button>' +
+    '<p class="help">Any OpenAI-compatible provider works (OpenRouter, Together). For faster answers on Groq, try the model llama-3.1-8b-instant.</p>' +
+    '<h2 class="h2">Backup</h2>' +
+    '<p class="help top0" style="margin-bottom:14px">Your cards are saved only in this browser. Copy a backup now and then. To restore it, paste it into Add, then Paste a pack.</p>' +
+    '<button class="btn alt" data-act="backup">Copy backup</button>' +
+    '<p class="help">On iPhone, add this page to your Home Screen so Safari doesn’t clear your cards after a week away.</p>' +
+    "</div>";
+}
+
+/* ============================================================
+   Sheets
+   ============================================================ */
+function openSheet(html) {
+  sheet.innerHTML = '<div class="grab"></div>' + html;
+  sheet.classList.add("open"); scrim.classList.add("open"); sheetOpen = true;
+  sheet.scrollTop = 0;
+  try { sheet.focus({ preventScroll: true }); } catch (e) {}
+}
+function closeSheet() {
+  sheet.classList.remove("open"); scrim.classList.remove("open"); sheetOpen = false; editingId = null;
+}
+function packSheet() {
+  const forStudy = view === "study";
+  const ps = packs();
+  const opt = (val, label) => {
+    const on = prefs.pack === val || (ps.length === 1 && !prefs.pack && val === ps[0]);
+    const n = forStudy ? toStudyCount(val) : packTotal(val);
+    const right = forStudy ? (n ? n + " to study" : "Nothing due") : plural(n, "card");
+    return `<button class="opt${on ? " on" : ""}" data-act="setpack" data-p="${esc(val)}"><span class="ck">${on ? ICON.check : ""}</span><span class="n">${esc(label)}</span><span class="c">${right}</span></button>`;
+  };
+  let h = `<h2 class="sh-t">${forStudy ? "What to study" : "Show cards from"}</h2>`;
+  if (ps.length > 1) h += opt("", "All packs");
+  ps.forEach(p => { h += opt(p, p); });
+  if (forStudy) {
+    const f = FOCI.find(x => x[0] === prefs.focus);
+    h += '<div class="sub">Cards</div><div class="seg wide">' +
+      FOCI.map(x => `<button data-act="focus" data-f="${x[0]}" class="${prefs.focus === x[0] ? "on" : ""}">${x[1]}</button>`).join("") +
+      `</div><p class="fdesc">${f[2]}</p>`;
+    h += `<label class="switch"><span>Shuffle order</span><input type="checkbox" id="shuffle"${prefs.shuffle ? " checked" : ""}><span class="sw"></span></label>`;
+  }
+  openSheet(h);
+}
+function editSheet(id, keep) {
+  const c = byId(id);
+  if (!c) return;
+  editingId = id;
+  const s = status(c);
+  const desc = { new: "Not studied yet.", no: "Marked Not yet.", almost: "Marked Almost.", due: "Due for review now.", known: "Known. Next review " + whenText(c.nextReview) + "." }[s];
+  const v = keep || { front: c.front, back: c.back, pack: c.pack };
+  openSheet(
+    '<h2 class="sh-t">Edit card</h2>' +
+    `<div class="field"><label class="lbl" for="eFront">Term</label><input class="in" id="eFront" autocomplete="off" value="${esc(v.front)}"></div>` +
+    `<div class="field"><label class="lbl" for="eBack">Definition</label><textarea class="ta serif" id="eBack">${esc(v.back)}</textarea></div>` +
+    `<div class="field"><label class="lbl" for="ePack">Pack</label><input class="in" id="ePack" list="packlist" autocomplete="off" value="${esc(v.pack)}">${packDatalist()}</div>` +
+    `<p class="help top0" style="margin-bottom:18px">${desc}${s !== "new" ? ' <button class="txt" data-act="resetcard">Reset to New</button>' : ""}</p>` +
+    '<div class="actions"><button class="btn" data-act="saveedit">Save changes</button><button class="btn danger" id="delBtn" data-act="delcard">Delete card</button></div>'
+  );
+}
+function importSheet() {
+  const n = pending.cards.length;
+  openSheet(
+    `<h2 class="sh-t">Import ${plural(n, "card")}</h2><p class="help top0" style="margin-bottom:16px">From a shared link. Cards you already have in the same pack are skipped.</p>` +
+    `<div class="field"><label class="lbl" for="pName">Pack name</label><input class="in" id="pName" autocomplete="off" value="${esc(pending.name || "Imported")}"></div>` +
+    `<div class="actions"><button class="btn" data-act="pending-import">Import ${plural(n, "card")}</button><button class="btn alt" data-act="pending-cancel">Not now</button></div>`
+  );
+}
+function shareSheet() {
+  const list = cards.filter(inPack);
+  const link = buildShareLink(list, prefs.pack);
+  copyText(link).then(ok => { if (ok) toast("Link copied"); });
+  openSheet(
+    `<h2 class="sh-t">Share ${prefs.pack ? esc(prefs.pack) : "all cards"}</h2>` +
+    `<p class="help top0" style="margin-bottom:14px">Opening this link offers to import these ${plural(list.length, "card")}. Your progress isn’t included.</p>` +
+    `<textarea class="ta link-box" id="shareBox" readonly>${esc(link)}</textarea>` +
+    (location.protocol === "file:" ? '<p class="help">This page is open as a local file, so the link only works on this device. Host the file (GitHub Pages works) to share it with other devices.</p>' : "") +
+    '<div class="actions" style="margin-top:16px"><button class="btn" data-act="copylink">Copy link</button></div>'
+  );
+}
+function renameSheet() {
+  openSheet(
+    '<h2 class="sh-t">Rename pack</h2>' +
+    `<div class="field"><label class="lbl" for="rnName">Name</label><input class="in" id="rnName" autocomplete="off" value="${esc(prefs.pack)}"></div>` +
+    '<div class="actions"><button class="btn" data-act="dorename">Rename</button></div>'
+  );
+}
+function delPackSheet() {
+  const n = packTotal(prefs.pack);
+  openSheet(
+    `<h2 class="sh-t">Delete “${esc(prefs.pack)}”?</h2><p class="help top0" style="margin-bottom:18px">This removes its ${plural(n, "card")} from this device. It can’t be undone.</p>` +
+    '<div class="actions"><button class="btn danger armed" data-act="dodelpack">Delete pack</button><button class="btn alt" data-act="close-sheet">Cancel</button></div>'
+  );
+}
+
+/* ============================================================
+   Actions
+   ============================================================ */
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.toggle("over", sheetOpen);       // keep it clear of sheet buttons
+  toastEl.classList.add("show");
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => toastEl.classList.remove("show"), 2400);
+}
+function copyText(t) {
+  return new Promise(res => {
+    const fallback = () => {
+      const ta = document.createElement("textarea");
+      ta.value = t; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta); res(ok);
+    };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(() => res(true), fallback);
+    else fallback();
+  });
+}
+function strToB64(s) { return btoa(unescape(encodeURIComponent(s))); }
+function b64ToStr(b) { return decodeURIComponent(escape(atob(b))); }
+function buildShareLink(list, name) {
+  const data = { cards: list.map(c => ({ front: c.front, back: c.back })) };
+  if (name) data.name = name;
+  return location.href.split("#")[0] + "#import=" + encodeURIComponent(strToB64(JSON.stringify(data)));
+}
+
+// Accepts JSON ({"name":..,"cards":[{front,back}]}, a bare array, or a backup) or "term :: definition" lines.
+function parsePack(text) {
+  text = (text || "").trim().replace(/^```[a-zA-Z]*\s*/, "").replace(/\s*```$/, "").trim();
+  if (!text) return null;
+  const out = [];
+  let name = null;
+  if (text[0] === "{" || text[0] === "[") {
+    let data;
+    try { data = JSON.parse(text); } catch (e) { return null; }
+    const arr = Array.isArray(data) ? data : (data && Array.isArray(data.cards) ? data.cards : null);
+    const isBackup = data && data.backup === true;
+    if (data && !Array.isArray(data) && data.name && !isBackup) name = String(data.name).trim();
+    (arr || []).forEach(o => {
+      if (!o || typeof o !== "object") return;
+      const f = o.front || o.term || o.word || o.q || o.question;
+      const b = o.back || o.definition || o.meaning || o.def || o.a || o.answer;
+      if (!f || !b) return;
+      const item = { front: String(f).trim(), back: String(b).trim() };
+      if (o.pack) item.pack = String(o.pack).trim();
+      if (isBackup) item.progress = o;
+      out.push(item);
+    });
+  } else {
+    text.split(/\r?\n/).forEach(line => {
+      line = line.trim();
+      if (!line) return;
+      const sep = line.includes("::") ? "::" : line.includes("\t") ? "\t" : null;
+      if (!sep) return;
+      const i = line.indexOf(sep);
+      const f = line.slice(0, i).trim(), b = line.slice(i + sep.length).trim();
+      if (f && b) out.push({ front: f, back: b });
     });
   }
-  return h+'</div>';
+  return out.length ? { cards: out, name } : null;
 }
-
-function renderList(){
-  var h='<div class="panel"><div class="panel-title">All cards</div><div class="panel-desc">'+cards.length+' total. Tap Edit to change a card, or \u2715 to remove it.</div>';
-  h += '<div class="search-row"><input class="field-input" id="listSearch" placeholder="\uD83D\uDD0D Search term or definition\u2026" value="'+esc(listSearch)+'" /><button class="search-clear" id="searchClear">\u2715</button></div>';
-  h += '<div class="search-count" id="searchCount"></div>';
-  if(cards.length===0){ h += '<div class="empty-state">No cards yet.</div>'; return h+'</div>'; }
-  h += '<div id="listItems">';
-  cards.forEach(function(c){
-    var key = (c.front+" "+c.back).toLowerCase();
-    h += '<div class="list-item" data-search="'+esc(key)+'"><div style="flex:1;min-width:0"><div class="list-word">'+esc(c.front)+'</div><div class="list-def">'+esc(c.back)+'</div></div>'+
-         '<div class="list-actions">'+
-           '<button class="list-edit" data-edit="'+c.id+'">Edit</button>'+
-           '<button class="list-remove" data-remove="'+c.id+'">\u2715</button>'+
-         '</div></div>';
+function doImport(list, name) {
+  name = (name || "").trim();
+  const have = new Set(cards.map(c => c.pack + "\u0001" + c.front.trim().toLowerCase()));
+  let added = 0, skipped = 0;
+  const hit = new Set();
+  list.forEach(o => {
+    const pack = name || o.pack || "Imported";
+    const k = pack + "\u0001" + o.front.trim().toLowerCase();
+    if (have.has(k)) { skipped++; return; }
+    const c = makeCard(o, pack);
+    const p = o.progress;
+    if (p) {
+      if (typeof p.level === "number") c.level = Math.max(0, Math.min(p.level, INTERVALS.length - 1));
+      if (typeof p.nextReview === "number") c.nextReview = p.nextReview;
+      if (typeof p.inRotation === "boolean") c.inRotation = p.inRotation;
+      if (typeof p.almost === "boolean") c.almost = p.almost;
+      if (typeof p.seen === "boolean") c.seen = p.seen;
+      if (typeof p.addedAt === "number") c.addedAt = p.addedAt;
+      if (typeof p.lastReviewed === "number") c.lastReviewed = p.lastReviewed;
+    }
+    cards.push(c); have.add(k); hit.add(pack); added++;
   });
-  h += '</div>';
-  h += '<div class="empty-state" id="noMatch" style="display:none">No cards match your search.</div>';
-  return h+'</div>';
+  persist();
+  const skipNote = skipped ? `, skipped ${skipped} already there` : "";
+  if (added) {
+    const ps = [...hit];
+    prefs.pack = ps.length === 1 ? ps[0] : "";
+    prefs.focus = "queue";
+    savePrefs();
+    round = null;
+    view = "study";
+    render();
+    toast(`Imported ${plural(added, "card")}${ps.length === 1 ? " into " + ps[0] : ""}${skipNote}`);
+  } else {
+    toast(skipped ? "You already have all of these cards" : "No cards found");
+  }
+  return added;
 }
-function applyListFilter(){
-  if(!document.getElementById("listSearch")) return;
-  var q=(listSearch||"").trim().toLowerCase();
-  var items=document.querySelectorAll("#listItems .list-item");
-  var shown=0;
-  items.forEach(function(el){
-    var match = !q || el.getAttribute("data-search").indexOf(q)>=0;
-    el.style.display = match ? "" : "none";
-    if(match) shown++;
-  });
-  var count=document.getElementById("searchCount");
-  if(count) count.textContent = q ? (shown+" match"+(shown!==1?"es":"")) : "";
-  var nm=document.getElementById("noMatch");
-  if(nm) nm.style.display = (q && shown===0) ? "block" : "none";
-  var clr=document.getElementById("searchClear");
-  if(clr) clr.style.display = listSearch ? "flex" : "none";
-}
-
-function renderEdit(){
-  var c = cards.filter(function(x){ return x.id===editingId; })[0];
-  if(!c) return '<div class="panel"><div class="empty-state">Card not found.<br/><span class="link" data-go="list">back to all cards \u2192</span></div></div>';
-  var h='<div class="panel"><div class="panel-title">Edit card</div>';
-  h += '<div class="panel-desc">Changes keep this card\u2019s review progress and which section it\u2019s in.</div>';
-  h += '<label class="field-label">Word or Term</label><input class="field-input mb" id="editFront" value="'+esc(c.front)+'" />';
-  h += '<label class="field-label">Definition</label><textarea class="field-textarea" id="editBack" style="height:160px">'+esc(c.back)+'</textarea>';
-  h += '<button class="primary-btn" id="saveEditBtn">Save changes</button>';
-  h += '<div style="text-align:center;margin-top:14px"><span class="link" data-go="list">cancel</span></div>';
-  return h+'</div>';
+function updateImportInfo() {
+  const info = $("#impInfo"), btn = $("#impBtn");
+  if (!info || !btn) return;
+  if (!imp.text.trim()) { info.textContent = ""; btn.disabled = true; btn.textContent = "Import"; return; }
+  const p = parsePack(imp.text);
+  if (!p) { info.innerHTML = '<span class="bad">Can’t read this yet</span>'; btn.disabled = true; btn.textContent = "Import"; return; }
+  const n = p.cards.length;
+  info.textContent = plural(n, "card") + " found";
+  btn.disabled = false;
+  btn.textContent = "Import " + plural(n, "card");
+  if (p.name && (!imp.name || imp.auto)) { imp.name = p.name; imp.auto = true; const el = $("#impName"); if (el) el.value = p.name; }
 }
 
-function renderSettings(){
-  var connected = settings.apiKey ? '<span class="ok-pill">Key saved</span>' : '';
-  var h='<div class="panel"><div class="panel-title">Setup '+connected+'</div>';
-  h += '<div class="panel-desc">Auto-definitions use a free, OpenAI-compatible AI provider. <b>Groq</b> is recommended: free, no credit card, runs open models.</div>';
-  h += '<div class="banner">Get a key: open <span class="link" data-ext="https://console.groq.com/keys">console.groq.com/keys</span>, sign in, create a key (starts with <b>gsk_</b>), paste it below. Your key is stored only on this device.</div>';
-  h += '<label class="field-label">API Base URL</label><input class="field-input mb" id="baseUrl" value="'+esc(settings.baseUrl)+'" />';
-  h += '<label class="field-label">API Key</label><input class="field-input mb" id="apiKey" type="password" placeholder="gsk_..." value="'+esc(settings.apiKey)+'" />';
-  h += '<label class="field-label">Model</label><input class="field-input" id="model" value="'+esc(settings.model)+'" />';
-  h += '<div class="settings-note">Default model <b>llama-3.3-70b-versatile</b> works well. For speed try <b>llama-3.1-8b-instant</b>. If a model name is rejected, check current names at console.groq.com. Works with OpenRouter/Together too \u2014 just change the base URL and key.</div>';
-  h += '<button class="primary-btn" id="saveBtn">Save settings</button>';
-  return h+'</div>';
+function showErr(msg) { draft.err = msg; const e = $("#genErr"); if (e) { e.textContent = msg; e.hidden = !msg; } }
+function setGenBtn() {
+  const b = $("#gen");
+  if (!b) return;
+  b.disabled = busy;
+  b.innerHTML = busy ? '<span class="spin" aria-label="Generating"></span>' : "Generate";
+}
+function generate() {
+  const termEl = $("#term");
+  const word = (termEl ? termEl.value : draft.term).trim();
+  if (!word) { showErr("Type a term first."); if (termEl) termEl.focus(); return; }
+  if (busy) return;
+  if (!settings.apiKey) { showErr("Add an API key in Settings to use Generate."); return; }
+  busy = true; setGenBtn(); showErr("");
+  const prompt = 'Explain the term "' + word + '" for a flashcard, in plain, simple language a beginner could understand. ' +
+    "Use everyday words and short sentences. Avoid jargon, and if you must use a technical word, explain it in the same breath. " +
+    "Where it helps, add a quick intuition, analogy, or concrete example so the idea actually clicks. " +
+    "Keep it to 1-3 sentences. Respond with ONLY the explanation text — do not repeat the term, no preamble, no quotation marks.";
+  const ctrl = window.AbortController ? new AbortController() : null;
+  const timer = setTimeout(() => ctrl && ctrl.abort(), 25000);
+  fetch(settings.baseUrl + "/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + settings.apiKey },
+    body: JSON.stringify({ model: settings.model, max_tokens: 300, temperature: 0.4, messages: [{ role: "user", content: prompt }] }),
+    signal: ctrl ? ctrl.signal : undefined
+  })
+    .then(res => res.text().then(txt => ({ ok: res.ok, status: res.status, txt })))
+    .then(r => {
+      let data = null; try { data = JSON.parse(r.txt); } catch (e) {}
+      if (!r.ok) {
+        const m = data && data.error && data.error.message ? data.error.message : "HTTP " + r.status;
+        showErr(r.status === 401 ? "The API key was rejected. Check it in Settings." : "Generate failed: " + m);
+        return;
+      }
+      let text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+      text = (text || "").trim().replace(/^["“]|["”]$/g, "").trim();
+      if (!text) { showErr("No definition came back. Try another model in Settings, or write it yourself."); return; }
+      draft.def = text;
+      const d = $("#def"); if (d) d.value = text;
+    })
+    .catch(err => {
+      showErr(err && err.name === "AbortError" ? "The API took too long to answer. Try again." : "Couldn’t reach the API. Check your connection, key, and provider URL in Settings.");
+    })
+    .then(() => { clearTimeout(timer); busy = false; setGenBtn(); });
+}
+function addCard() {
+  const t = ($("#term").value || "").trim(), d = ($("#def").value || "").trim();
+  const p = ($("#addPack").value || "").trim() || MANUAL_PACK;
+  if (!t) { showErr("Type a term first."); $("#term").focus(); return; }
+  if (!d) { showErr(settings.apiKey ? "Write a definition, or tap Generate." : "Write a definition first."); $("#def").focus(); return; }
+  cards.push(makeCard({ front: t, back: d }, p));
+  persist();
+  prefs.addPack = p; savePrefs();
+  draft = { term: "", def: "", pack: draft.pack, err: "" };
+  $("#term").value = ""; $("#def").value = ""; showErr("");
+  $("#term").focus();
+  renderTabs();
+  toast("Added to " + p);
 }
 
-// ---------- wire events ----------
-function wire(){
-  document.querySelectorAll("[data-go]").forEach(function(el){ el.onclick=function(){ go(el.getAttribute("data-go")); }; });
-  var gear=document.querySelector("[data-gear]"); if(gear) gear.onclick=function(){ view = (view==="settings"?"browse":"settings"); render(); };
-  document.querySelectorAll("[data-pack]").forEach(function(el){ el.onclick=function(){ setPack(el.getAttribute("data-pack")); }; });
-  document.querySelectorAll("[data-ext]").forEach(function(el){ el.onclick=function(){ window.open(el.getAttribute("data-ext"),"_blank"); }; });
-  document.querySelectorAll("[data-nav]").forEach(function(el){ el.onclick=function(){ nav(parseInt(el.getAttribute("data-nav"),10)); }; });
-  document.querySelectorAll("[data-jump]").forEach(function(el){ el.onclick=function(){ jump(parseInt(el.getAttribute("data-jump"),10)); }; });
-  document.querySelectorAll("[data-remove]").forEach(function(el){ el.onclick=function(e){ e.stopPropagation(); removeCard(el.getAttribute("data-remove")); }; });
-  document.querySelectorAll("[data-edit]").forEach(function(el){ el.onclick=function(e){ e.stopPropagation(); startEdit(el.getAttribute("data-edit")); }; });
-  var lsEl=document.getElementById("listSearch");
-  if(lsEl){ lsEl.oninput=function(){ listSearch=lsEl.value; applyListFilter(); }; }
-  var scEl=document.getElementById("searchClear");
-  if(scEl){ scEl.onclick=function(){ listSearch=""; var i=document.getElementById("listSearch"); if(i){ i.value=""; i.focus(); } applyListFilter(); }; }
-  applyListFilter();
-  var saveEditBtn=document.getElementById("saveEditBtn");
-  if(saveEditBtn) saveEditBtn.onclick=function(){ saveEdit(document.getElementById("editFront").value, document.getElementById("editBack").value); };
-  document.querySelectorAll("[data-mix]").forEach(function(el){ el.onclick=function(){ mixCards(); }; });
-  document.querySelectorAll("[data-reset]").forEach(function(el){ el.onclick=function(){ resetOrder(); }; });
-  var importBtn=document.getElementById("importBtn");
-  if(importBtn) importBtn.onclick=function(){
-    var t=document.getElementById("importText").value; importText=t;
-    var nm=document.getElementById("packName"); if(nm) importName=nm.value;
-    var parsed=parsePack(t);
-    if(!parsed){ importMsg="Couldn't read that. Paste JSON with a cards array, or lines like  Term :: Definition"; render(); return; }
-    importMsg=""; importCards(parsed.cards, importName || parsed.name);
-  };
-  var ilink=document.querySelector("[data-importlink]"); if(ilink) ilink.onclick=function(){
-    var nm=document.getElementById("packName"); var pn = (nm && nm.value.trim()) ? nm.value : pendingName;
-    importCards(pendingImport, pn);
-  };
-  var dlink=document.querySelector("[data-discardlink]"); if(dlink) dlink.onclick=function(){ pendingImport=null; pendingName=""; render(); };
-  var mlink=document.querySelector("[data-makelink]"); if(mlink) mlink.onclick=function(){ shareLink=buildShareLink(cards); render(); };
-  var pnEl=document.getElementById("packName"); if(pnEl) pnEl.oninput=function(){ importName=pnEl.value; };
-  var itEl=document.getElementById("importText"); if(itEl) itEl.oninput=function(){ importText=itEl.value; };
-  var rv=document.querySelector("[data-reveal]"); if(rv) rv.onclick=function(){ revealed=true; render(); };
+/* ============================================================
+   Swipe to sort
+   ============================================================ */
+const TH_X = 95, TH_Y = 85;
+const reduceMotion = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // swipe-to-grade: attach drag start to the current browse card
-  swipe.el=null; swipe.dragging=false;
-  var sc=document.querySelector("[data-swipe]");
-  if(sc){ sc.addEventListener("touchstart", swipeStart, {passive:true}); sc.addEventListener("mousedown", swipeStart); }
-
-  var genBtn=document.getElementById("genBtn");
-  if(genBtn) genBtn.onclick=function(){ var w=document.getElementById("word").value; var d=document.getElementById("def"); if(d) genState.value=d.value; generate(w); };
-  var regen=document.getElementById("regen");
-  if(regen) regen.onclick=function(){ generate(document.getElementById("word").value); };
-  var addBtn=document.getElementById("addBtn");
-  if(addBtn) addBtn.onclick=function(){ addCard(document.getElementById("word").value, document.getElementById("def").value); };
-
-  // keep typed values in state so re-render doesn't wipe them
-  var wEl=document.getElementById("word"); if(wEl) wEl.oninput=function(){ genState.word=wEl.value; };
-  var dEl=document.getElementById("def"); if(dEl) dEl.oninput=function(){ genState.value=dEl.value; };
-
-  var saveBtn=document.getElementById("saveBtn");
-  if(saveBtn) saveBtn.onclick=function(){
-    saveSettings(document.getElementById("baseUrl").value, document.getElementById("apiKey").value, document.getElementById("model").value);
-  };
+function setHot(g, p, el, nx) {
+  if (el) { if (g && p >= 1) el.setAttribute("data-g", g); else el.removeAttribute("data-g"); }
+  main.querySelectorAll(".g").forEach(b => b.classList.toggle("hot", !!g && p >= 1 && b.dataset.g === g));
+  if (nx) { nx.style.transition = "none"; nx.style.transform = `translateY(${12 - 12 * p}px) scale(${0.94 + 0.06 * p})`; }
+}
+function flipCard(el) {
+  flipped = !flipped;
+  el.classList.toggle("flipped", flipped);
+  if (!prefs.flipped) { prefs.flipped = true; savePrefs(); main.querySelectorAll(".hint").forEach(h => h.remove()); fitAll(); }
+}
+function flyOut(el, nx, g) {
+  animating = true;
+  const W = window.innerWidth, H = window.innerHeight;
+  const dur = reduceMotion() ? 0 : 280;
+  el.style.transition = `transform ${dur}ms cubic-bezier(.4,0,.9,.6), opacity ${dur}ms`;
+  if (g === "almost") el.style.transform = `translate(0, ${-H}px) scale(.92)`;
+  else { const s = g === "know" ? 1 : -1; el.style.transform = `translate(${s * (W + 200)}px, 40px) rotate(${s * 20}deg)`; }
+  el.style.opacity = "0";
+  setHot(g, 1, el, null);
+  if (nx) { nx.style.transition = `transform ${dur}ms ease`; nx.style.transform = "none"; }
+  setTimeout(() => { animating = false; grade(g); render(); }, dur ? dur - 20 : 0);
+}
+function springBack(el, nx) {
+  el.style.transition = "transform .35s cubic-bezier(.2,.9,.3,1.15)";
+  el.style.transform = "";
+  setHot(null, 0, el, null);
+  if (nx) { nx.style.transition = "transform .35s ease"; nx.style.transform = ""; }
+}
+function sortCurrent(g) {
+  if (animating || drag) return;
+  const el = main.querySelector(".card.cur");
+  if (!el) return;
+  flyOut(el, main.querySelector(".card.next"), g);
 }
 
-window.addEventListener("mousemove", swipeMove);
-window.addEventListener("mouseup", swipeEnd);
-window.addEventListener("touchmove", swipeMove, {passive:false});
-window.addEventListener("touchend", swipeEnd);
+main.addEventListener("pointerdown", e => {
+  if (animating || (e.pointerType === "mouse" && e.button !== 0)) return;
+  const el = e.target.closest(".card.cur");
+  if (!el) return;
+  drag = { el, nx: main.querySelector(".card.next"), id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, axis: null, g: null, p: 0, hist: [] };
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  el.style.transition = "none";
+  el.style.animation = "none";
+});
+window.addEventListener("pointermove", e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+  if (!drag.axis) {
+    if (dx * dx + dy * dy < 64) return;
+    drag.axis = Math.abs(dx) > Math.abs(dy) ? "h" : dy < 0 ? "v" : "down";
+  }
+  drag.dx = dx; drag.dy = dy;
+  drag.hist.push([performance.now(), dx, dy]); if (drag.hist.length > 5) drag.hist.shift();
+  let g = null, p = 0, tf;
+  if (drag.axis === "h") {
+    g = dx > 0 ? "know" : "no"; p = Math.min(1, Math.abs(dx) / TH_X);
+    tf = `translate(${dx}px, ${dy * 0.2}px) rotate(${dx * 0.05}deg)`;
+  } else if (drag.axis === "v" && dy < 0) {
+    g = "almost"; p = Math.min(1, -dy / TH_Y);
+    tf = `translate(${dx * 0.2}px, ${dy}px)`;
+  } else {
+    tf = `translate(0, ${Math.max(0, dy) * 0.25}px)`;
+  }
+  drag.el.style.transform = tf; drag.g = g; drag.p = p;
+  setHot(g, p, drag.el, drag.nx);
+});
+function endDrag(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const d = drag; drag = null;
+  if (!d.axis) { d.el.style.transition = ""; d.el.style.transform = ""; if (e.type !== "pointercancel") flipCard(d.el); return; }
+  let v = 0;
+  if (d.hist.length >= 2) {
+    const a = d.hist[0], b = d.hist[d.hist.length - 1], dt = Math.max(1, b[0] - a[0]);
+    if (d.g === "know") v = (b[1] - a[1]) / dt;
+    else if (d.g === "no") v = (a[1] - b[1]) / dt;
+    else if (d.g === "almost") v = (a[2] - b[2]) / dt;
+  }
+  const dist = d.axis === "h" ? Math.abs(d.dx) : -d.dy;
+  const commit = e.type !== "pointercancel" && d.g && (d.p >= 1 || (v > 0.6 && dist > 40));
+  if (commit) flyOut(d.el, d.nx, d.g); else springBack(d.el, d.nx);
+}
+window.addEventListener("pointerup", endDrag);
+window.addEventListener("pointercancel", endDrag);
 
-// If opened via an import link (#import=base64 or #add=urlencoded-json), stage the cards.
-(function(){
-  var h = location.hash || "";
-  var json = null;
-  try{
-    if(h.indexOf("#import=")===0) json = b64ToStr(decodeURIComponent(h.slice(8)));
-    else if(h.indexOf("#add=")===0) json = decodeURIComponent(h.slice(5));
-  }catch(e){ json=null; }
-  if(json){
-    var parsed = parsePack(json);
-    if(parsed){ pendingImport = parsed.cards; pendingName = parsed.name || ""; view = "import"; }
-    try{ history.replaceState(null, "", location.pathname + location.search); }catch(e){}
+/* ============================================================
+   Events
+   ============================================================ */
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-act]");
+  if (!t) return;
+  const a = t.dataset.act;
+  switch (a) {
+    case "go": if (sheetOpen) closeSheet(); go(t.dataset.v); break;
+    case "close-sheet": closeSheet(); break;
+    case "packs": packSheet(); break;
+    case "setpack":
+      prefs.pack = t.dataset.p; savePrefs(); closeSheet(); libFilter = "all"; render(); break;
+    case "focus":
+      prefs.focus = t.dataset.f; savePrefs(); if (sheetOpen) closeSheet(); render(); break;
+    case "grade": sortCurrent(t.dataset.g); break;
+    case "undo": undo(); break;
+    case "again": newRound(); render(); break;
+    case "add-one": addMode = "one"; go("add"); break;
+    case "add-paste": addMode = "paste"; go("add"); break;
+    case "addmode":
+      if (addMode !== t.dataset.m) { addMode = t.dataset.m; render(); }
+      break;
+    case "generate": generate(); break;
+    case "add": addCard(); break;
+    case "import": {
+      const p = parsePack(imp.text);
+      if (p) doImport(p.cards, imp.name || p.name);
+      break;
+    }
+    case "filter":
+      libFilter = t.dataset.f; $("#filters").innerHTML = filtersHTML(); $("#rows").innerHTML = rowsHTML(); break;
+    case "edit": editSheet(t.dataset.id); break;
+    case "saveedit": {
+      const c = byId(editingId); if (!c) { closeSheet(); break; }
+      const f = $("#eFront").value.trim(), b = $("#eBack").value.trim(), p = $("#ePack").value.trim() || MANUAL_PACK;
+      if (!f || !b) { toast("A card needs a term and a definition"); break; }
+      c.front = f; c.back = b; c.pack = p; persist();
+      if (prefs.pack && !cards.some(x => x.pack === prefs.pack)) { prefs.pack = ""; savePrefs(); }
+      closeSheet(); render(); toast("Saved");
+      break;
+    }
+    case "resetcard": {
+      const c = byId(editingId); if (!c) break;
+      const keep = { front: $("#eFront").value, back: $("#eBack").value, pack: $("#ePack").value };
+      Object.assign(c, { inRotation: false, almost: false, level: 0, seen: false, nextReview: Date.now() });
+      persist(); editSheet(c.id, keep); if (view === "cards") { $("#filters").innerHTML = filtersHTML(); $("#rows").innerHTML = rowsHTML(); }
+      break;
+    }
+    case "delcard": {
+      if (!t.classList.contains("armed")) { t.classList.add("armed"); t.textContent = "Tap again to delete"; break; }
+      cards = cards.filter(c => c.id !== editingId); persist();
+      if (prefs.pack && !cards.some(x => x.pack === prefs.pack)) { prefs.pack = ""; savePrefs(); }
+      closeSheet(); render(); toast("Card deleted");
+      break;
+    }
+    case "share": shareSheet(); break;
+    case "copylink": { const box = $("#shareBox"); copyText(box.value).then(ok => { toast(ok ? "Link copied" : "Select the link and copy it"); if (!ok) box.select(); }); break; }
+    case "rename": renameSheet(); break;
+    case "dorename": {
+      const nm = $("#rnName").value.trim(), old = prefs.pack;
+      if (!nm || nm === old) { closeSheet(); break; }
+      cards.forEach(c => { if (c.pack === old) c.pack = nm; });
+      persist(); prefs.pack = nm; savePrefs(); closeSheet(); render(); toast("Renamed to " + nm);
+      break;
+    }
+    case "delpack": delPackSheet(); break;
+    case "dodelpack": {
+      const old = prefs.pack;
+      cards = cards.filter(c => c.pack !== old); persist();
+      prefs.pack = ""; savePrefs(); closeSheet(); render(); toast("Deleted " + old);
+      break;
+    }
+    case "savekey": {
+      settings = { apiKey: $("#sKey").value.trim(), model: $("#sModel").value.trim() || "llama-3.3-70b-versatile", baseUrl: ($("#sUrl").value.trim() || "https://api.groq.com/openai/v1").replace(/\/+$/, "") };
+      save(KEYS.settings, settings); toast("Settings saved");
+      break;
+    }
+    case "backup": {
+      const data = JSON.stringify({ backup: true, exported: new Date().toISOString(), cards: cards.map(c => ({ front: c.front, back: c.back, pack: c.pack, level: c.level, nextReview: c.nextReview, lastReviewed: c.lastReviewed, inRotation: c.inRotation, almost: c.almost, seen: c.seen, addedAt: c.addedAt })) });
+      copyText(data).then(ok => {
+        if (ok) toast("Backup copied. Paste it somewhere safe.");
+        else openSheet(`<h2 class="sh-t">Backup</h2><p class="help top0" style="margin-bottom:14px">Copy this text and keep it somewhere safe.</p><textarea class="ta link-box" readonly>${esc(data)}</textarea>`);
+      });
+      break;
+    }
+    case "pending-import": { const nm = $("#pName").value; const p = pending; pending = null; closeSheet(); doImport(p.cards, nm || p.name); break; }
+    case "pending-cancel": pending = null; closeSheet(); break;
+  }
+});
+document.addEventListener("change", e => {
+  if (e.target.id === "shuffle") { prefs.shuffle = e.target.checked; savePrefs(); newRound(); if (view === "study") render(); }
+});
+document.addEventListener("input", e => {
+  const el = e.target;
+  switch (el.id) {
+    case "term": draft.term = el.value; break;
+    case "def": draft.def = el.value; break;
+    case "addPack": draft.pack = el.value; break;
+    case "impText": imp.text = el.value; updateImportInfo(); break;
+    case "impName": imp.name = el.value; imp.auto = false; break;
+    case "q": libQuery = el.value; $("#rows").innerHTML = rowsHTML(); break;
+  }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && sheetOpen) { closeSheet(); return; }
+  const tgt = e.target;
+  if (tgt.id === "term" && e.key === "Enter") { e.preventDefault(); if (settings.apiKey) generate(); else $("#def").focus(); return; }
+  if (tgt.id === "rnName" && e.key === "Enter") { e.preventDefault(); $('[data-act="dorename"]').click(); return; }
+  if (view !== "study" || sheetOpen) return;
+  if (tgt.matches && tgt.matches("input, textarea")) return;
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const onButton = tgt.tagName === "BUTTON";
+  if ((e.key === " " || e.key === "Enter") && !onButton) {
+    const el = main.querySelector(".card.cur");
+    if (el && !animating) { e.preventDefault(); flipCard(el); }
+    return;
+  }
+  const map = { ArrowRight: "know", ArrowLeft: "no", ArrowUp: "almost" };
+  if (map[e.key]) { e.preventDefault(); sortCurrent(map[e.key]); return; }
+  if (e.key === "z" || e.key === "Z" || e.key === "Backspace") { e.preventDefault(); undo(); }
+});
+let resizeT;
+window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (view === "study") fitAll(); }, 120); });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && view === "study" && !drag && !animating && !sheetOpen) render();
+});
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (view === "study") fitAll(); });
+
+/* ============================================================
+   Start
+   ============================================================ */
+(function readImportLink() {
+  const h = location.hash || "";
+  let json = null;
+  try {
+    if (h.indexOf("#import=") === 0) json = b64ToStr(decodeURIComponent(h.slice(8)));
+    else if (h.indexOf("#add=") === 0) json = decodeURIComponent(h.slice(5));
+  } catch (e) { json = null; }
+  if (json) {
+    const p = parsePack(json);
+    if (p) pending = p;
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
   }
 })();
 
+if (!storageOK) {
+  $("#banner").innerHTML = '<div class="banner">This preview can’t save. Open the file directly in your browser to keep your cards.</div>';
+}
+savePrefs();
 render();
+if (pending) importSheet();
 </script>
 </body>
 </html>
